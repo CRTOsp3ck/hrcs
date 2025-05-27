@@ -22,7 +22,7 @@
 
     <!-- Approval Levels List -->
     <div class="levels-container">
-      <Draggable 
+      <draggable 
         v-model="approvalLevels" 
         item-key="id"
         handle=".drag-handle"
@@ -120,7 +120,7 @@
             </template>
           </Card>
         </template>
-      </Draggable>
+      </draggable>
     </div>
 
     <!-- Add/Edit Dialog -->
@@ -325,7 +325,7 @@
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { adminApi } from '@/api'
-import Draggable from 'vuedraggable'
+import draggable from 'vuedraggable'
 
 const toast = useToast()
 

@@ -46,6 +46,8 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Breadcrumb from 'primevue/breadcrumb'
 import Badge from 'primevue/badge'
 import Chart from 'primevue/chart'
+import ColorPicker from 'primevue/colorpicker'
+import InputSwitch from 'primevue/inputswitch'
 
 const app = createApp(App)
 
@@ -118,5 +120,7 @@ app.component('ProgressSpinner', ProgressSpinner)
 app.component('Breadcrumb', Breadcrumb)
 app.component('Badge', Badge)
 app.component('Chart', Chart)
+app.component('ColorPicker', ColorPicker)
+app.component('InputSwitch', InputSwitch)
 
 app.mount('#app')
