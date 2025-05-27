@@ -2,7 +2,7 @@
   <div>
     <div class="page-container">
       <div class="page-header">
-        <h1 class="page-title">Welcome back, {{ authStore.user?.name }}!</h1>
+        <h1 class="page-title">Welcome back, {{ authStore.user?.first_name }} {{ authStore.user?.last_name }}!</h1>
         <p class="page-subtitle">Here's an overview of your claims activity</p>
       </div>
 

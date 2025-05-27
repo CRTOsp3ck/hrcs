@@ -2,13 +2,14 @@
   <Menubar :model="menuItems" class="navbar-fixed">
     <template #start>
       <router-link to="/dashboard" class="navbar-brand">
-        <i class="pi pi-building mr-2"></i>
-        <span class="font-bold">HR Claims</span>
+        <!-- <i class="pi pi-building mr-2"></i> -->
+        <span class="font-bold">XR-Claimatix</span>
+        <div class="mr-8"></div>
       </router-link>
     </template>
 
     <template #end>
-      <div class="flex align-items-center gap-3">
+      <div class="flex items-center gap-3">
         <Avatar
           :label="userInitials"
           :style="{ backgroundColor: '#2563eb', color: '#ffffff' }"
