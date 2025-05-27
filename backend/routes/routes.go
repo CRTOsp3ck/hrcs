@@ -65,6 +65,7 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 						r.Get("/", adminEnhanced.GetAllClaims)
 						r.Post("/{id}/approve", adminEnhanced.AdminApproveClaim)
 						r.Post("/{id}/reject", adminEnhanced.AdminRejectClaim)
+						r.Put("/{id}/status", adminEnhanced.UpdateClaimStatus)
 					})
 
 					// Users management

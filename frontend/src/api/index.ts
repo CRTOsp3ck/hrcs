@@ -98,6 +98,7 @@ export const adminApi = {
   getAllClaims: () => api.get<ApiResponse<Claim[]>>('/admin/claims'),
   approveClaim: (id: number, data: { comments?: string }) => api.post<ApiResponse<Claim>>(`/admin/claims/${id}/approve`, data),
   rejectClaim: (id: number, data: { comments?: string }) => api.post<ApiResponse<Claim>>(`/admin/claims/${id}/reject`, data),
+  updateClaimStatus: (id: number, data: { status: string; comments?: string }) => api.put<ApiResponse<Claim>>(`/admin/claims/${id}/status`, data),
 
   // Users management
   getUsers: () => api.get<ApiResponse<User[]>>('/admin/users'),

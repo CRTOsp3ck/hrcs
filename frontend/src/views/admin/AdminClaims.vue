@@ -180,34 +180,28 @@
         </template>
       </Column>
       
-      <Column header="Actions" :exportable="false" style="width: 150px">
+      <Column header="Actions" :exportable="false" style="width: 200px">
         <template #body="slotProps">
-          <Button 
-            icon="pi pi-eye" 
-            severity="info" 
-            text 
-            rounded 
-            @click="viewClaim(slotProps.data)"
-            v-tooltip="'View Details'"
-          />
-          <Button 
-            v-if="canApprove(slotProps.data)"
-            icon="pi pi-check" 
-            severity="success" 
-            text 
-            rounded 
-            @click="approveClaim(slotProps.data)"
-            v-tooltip="'Approve'"
-          />
-          <Button 
-            v-if="canReject(slotProps.data)"
-            icon="pi pi-times" 
-            severity="danger" 
-            text 
-            rounded 
-            @click="rejectClaim(slotProps.data)"
-            v-tooltip="'Reject'"
-          />
+          <div class="actions-row">
+            <Button 
+              icon="pi pi-eye" 
+              severity="info" 
+              text 
+              rounded 
+              @click="viewClaim(slotProps.data)"
+              v-tooltip="'View Details'"
+            />
+            <Dropdown 
+              v-if="slotProps.data.canApprove && slotProps.data.allowedStatuses?.length > 0"
+              :modelValue="slotProps.data.status"
+              :options="getStatusOptions(slotProps.data)"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Change Status"
+              @update:modelValue="updateClaimStatus(slotProps.data, $event)"
+              class="status-dropdown"
+            />
+          </div>
         </template>
       </Column>
     </DataTable>
@@ -312,20 +306,23 @@
       
       <template #footer>
         <Button label="Close" severity="secondary" @click="showDetailsDialog = false" />
-        <Button 
-          v-if="selectedClaim && canApprove(selectedClaim)"
-          label="Approve" 
-          icon="pi pi-check" 
-          severity="success"
-          @click="approveClaim(selectedClaim)"
-        />
-        <Button 
-          v-if="selectedClaim && canReject(selectedClaim)"
-          label="Reject" 
-          icon="pi pi-times" 
-          severity="danger"
-          @click="rejectClaim(selectedClaim)"
-        />
+        <div v-if="selectedClaim && selectedClaim.canApprove && selectedClaim.allowedStatuses?.length > 0" class="status-update-section">
+          <Dropdown 
+            v-model="dialogSelectedStatus"
+            :options="getStatusOptions(selectedClaim)"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Change Status"
+            class="status-dropdown"
+          />
+          <Button 
+            label="Update Status" 
+            icon="pi pi-check" 
+            severity="primary"
+            @click="updateClaimStatusFromDialog"
+            :disabled="!dialogSelectedStatus || dialogSelectedStatus === selectedClaim.status"
+          />
+        </div>
       </template>
     </Dialog>
 
@@ -373,14 +370,15 @@ import { adminApi } from '@/api'
 const toast = useToast()
 
 const loading = ref(false)
-const claims = ref([])
-const selectedClaims = ref([])
+const claims = ref<any[]>([])
+const selectedClaims = ref<any[]>([])
 const showDetailsDialog = ref(false)
 const showActionDialog = ref(false)
-const selectedClaim = ref(null)
+const selectedClaim = ref<any>(null)
 const actionClaim = ref(null)
 const actionType = ref('')
 const actionComments = ref('')
+const dialogSelectedStatus = ref('')
 
 const stats = ref({
   pending: 0,
@@ -436,7 +434,7 @@ const filteredClaims = computed(() => {
   if (filters.value.dateRange && filters.value.dateRange[0]) {
     const [start, end] = filters.value.dateRange
     result = result.filter((claim: any) => {
-      const date = new Date(claim.submittedDate)
+      const date = new Date(claim.submittedDate || claim.created_at)
       return date >= start && (!end || date <= end)
     })
   }
@@ -512,11 +510,89 @@ const getApprovalProgress = (claim: any) => {
 }
 
 const canApprove = (claim: any) => {
-  return claim.status === 'pending' || claim.status === 'in-progress'
+  return claim.canApprove && claim.allowedStatuses?.length > 0
 }
 
 const canReject = (claim: any) => {
-  return claim.status === 'pending' || claim.status === 'in-progress'
+  return claim.canApprove && claim.allowedStatuses?.includes('rejected')
+}
+
+const getClaimStatus = (claim: any) => {
+  return claim.status
+}
+
+const getStatusOptions = (claim: any) => {
+  if (!claim.allowedStatuses) return []
+  
+  const statusLabels: Record<string, string> = {
+    'draft': 'Draft',
+    'submitted': 'Submitted',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'payment-in-progress': 'Payment in Progress',
+    'paid': 'Paid'
+  }
+  
+  return claim.allowedStatuses.map((status: string) => ({
+    label: statusLabels[status] || status,
+    value: status
+  }))
+}
+
+const updateClaimStatus = async (claim: any, newStatus: string) => {
+  if (newStatus === claim.status) return
+  
+  try {
+    await adminApi.updateClaimStatus(claim.id, { 
+      status: newStatus,
+      comments: '' // TODO: Add comments dialog if needed
+    })
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: `Claim status updated to ${newStatus}`,
+      life: 3000
+    })
+    
+    loadClaims()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update claim status',
+      life: 3000
+    })
+  }
+}
+
+const updateClaimStatusFromDialog = async () => {
+  if (!selectedClaim.value || !dialogSelectedStatus.value) return
+  
+  try {
+    await adminApi.updateClaimStatus(selectedClaim.value.id, { 
+      status: dialogSelectedStatus.value,
+      comments: ''
+    })
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: `Claim status updated to ${dialogSelectedStatus.value}`,
+      life: 3000
+    })
+    
+    showDetailsDialog.value = false
+    dialogSelectedStatus.value = ''
+    loadClaims()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update claim status',
+      life: 3000
+    })
+  }
 }
 
 const getApprovalClass = (action: string) => {
@@ -543,7 +619,7 @@ const loadClaims = async () => {
   loading.value = true
   try {
     const response = await adminApi.getAllClaims()
-    claims.value = response.data.data
+    claims.value = response.data.data || []
     updateStats()
   } catch (error) {
     toast.add({
@@ -568,20 +644,10 @@ const updateStats = () => {
 
 const viewClaim = (claim: any) => {
   selectedClaim.value = claim
+  dialogSelectedStatus.value = claim.status
   showDetailsDialog.value = true
 }
 
-const approveClaim = (claim: any) => {
-  actionClaim.value = claim
-  actionType.value = 'approve'
-  showActionDialog.value = true
-}
-
-const rejectClaim = (claim: any) => {
-  actionClaim.value = claim
-  actionType.value = 'reject'
-  showActionDialog.value = true
-}
 
 const bulkApprove = () => {
   actionClaim.value = null
@@ -910,6 +976,23 @@ onMounted(() => {
 
 .rejected-row {
   opacity: 0.7;
+}
+
+.actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dropdown {
+  min-width: 120px;
+}
+
+.status-update-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 @media (max-width: 1200px) {

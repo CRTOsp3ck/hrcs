@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"hrcs/backend/middleware"
 	"hrcs/backend/models"
 	"hrcs/backend/utils"
 
@@ -24,6 +25,8 @@ func NewAdminEnhancedHandler(db *gorm.DB) *AdminEnhancedHandler {
 
 // Admin Claims Management
 func (h *AdminEnhancedHandler) GetAllClaims(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r.Context())
+	
 	var claims []models.Claim
 	query := h.DB.Preload("User").Preload("ClaimType").Order("created_at DESC")
 
@@ -38,27 +41,73 @@ func (h *AdminEnhancedHandler) GetAllClaims(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Get approver permissions for current user
+	var approverLevels []models.ApprovalLevel
+	h.DB.Where("approver_id = ?", user.ID).Find(&approverLevels)
+
 	// Enhanced claim response with additional fields
 	type EnhancedClaim struct {
 		models.Claim
-		Employee         string `json:"employee"`
-		Department       string `json:"department"`
-		Type             string `json:"type"`
-		ApprovalsReceived int   `json:"approvalsReceived"`
-		ApprovalsRequired int   `json:"approvalsRequired"`
-		SubmittedDate    string `json:"submittedDate"`
+		Employee          string   `json:"employee"`
+		Department        string   `json:"department"`
+		Type              string   `json:"type"`
+		ApprovalsReceived int      `json:"approvalsReceived"`
+		ApprovalsRequired int      `json:"approvalsRequired"`
+		SubmittedDate     string   `json:"submittedDate"`
+		CanApprove        bool     `json:"canApprove"`
+		AllowedStatuses   []string `json:"allowedStatuses"`
 	}
 
 	var enhancedClaims []EnhancedClaim
 	for _, claim := range claims {
+		// Check if user can approve this claim and get allowed statuses
+		canApprove := false
+		allowedStatuses := []string{}
+		
+		// Check if user is an approver for claims involving this user's group
+		if claim.UserID != user.ID { // Can't approve own claims
+			for _, level := range approverLevels {
+				// Check if the claim user is in the same group as this approval level
+				var claimUser models.User
+				h.DB.Preload("UserGroup").First(&claimUser, claim.UserID)
+				
+				if claimUser.UserGroupID != nil && *claimUser.UserGroupID == level.UserGroupID {
+					canApprove = true
+					
+					// Add allowed statuses based on permissions
+					if level.CanDraft {
+						allowedStatuses = append(allowedStatuses, string(models.StatusDraft))
+					}
+					if level.CanSubmit {
+						allowedStatuses = append(allowedStatuses, string(models.StatusSubmitted))
+					}
+					if level.CanApprove {
+						allowedStatuses = append(allowedStatuses, string(models.StatusApproved))
+					}
+					if level.CanReject {
+						allowedStatuses = append(allowedStatuses, string(models.StatusRejected))
+					}
+					if level.CanSetPaymentInProgress {
+						allowedStatuses = append(allowedStatuses, string(models.StatusPaymentInProgress))
+					}
+					if level.CanSetPaid {
+						allowedStatuses = append(allowedStatuses, string(models.StatusPaid))
+					}
+					break
+				}
+			}
+		}
+
 		enhanced := EnhancedClaim{
-			Claim:            claim,
-			Employee:         claim.User.FirstName + " " + claim.User.LastName,
-			Department:       "IT", // TODO: Add department field to User model
-			Type:             claim.ClaimType.Name,
+			Claim:             claim,
+			Employee:          claim.User.FirstName + " " + claim.User.LastName,
+			Department:        "IT", // TODO: Add department field to User model
+			Type:              claim.ClaimType.Name,
 			ApprovalsReceived: 1, // TODO: Implement actual approval tracking
 			ApprovalsRequired: 3, // TODO: Based on approval levels
-			SubmittedDate:    claim.CreatedAt.Format("2006-01-02"),
+			SubmittedDate:     claim.CreatedAt.Format("2006-01-02"),
+			CanApprove:        canApprove,
+			AllowedStatuses:   allowedStatuses,
 		}
 		enhancedClaims = append(enhancedClaims, enhanced)
 	}
@@ -124,6 +173,95 @@ func (h *AdminEnhancedHandler) AdminRejectClaim(w http.ResponseWriter, r *http.R
 	}
 
 	utils.WriteSuccess(w, claim, "Claim rejected successfully")
+}
+
+func (h *AdminEnhancedHandler) UpdateClaimStatus(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r.Context())
+	claimID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid claim ID")
+		return
+	}
+
+	var req struct {
+		Status   models.ClaimStatus `json:"status"`
+		Comments string             `json:"comments"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	var claim models.Claim
+	if err := h.DB.Preload("User").First(&claim, claimID).Error; err != nil {
+		utils.WriteError(w, http.StatusNotFound, "Claim not found")
+		return
+	}
+
+	// Check if user can approve this claim
+	if claim.UserID == user.ID {
+		utils.WriteError(w, http.StatusForbidden, "Cannot approve your own claim")
+		return
+	}
+
+	// Get user's approval levels and check permissions
+	var approverLevels []models.ApprovalLevel
+	h.DB.Where("approver_id = ?", user.ID).Find(&approverLevels)
+
+	hasPermission := false
+	for _, level := range approverLevels {
+		// Check if the claim user is in the same group as this approval level
+		var claimUser models.User
+		h.DB.Preload("UserGroup").First(&claimUser, claim.UserID)
+		
+		if claimUser.UserGroupID != nil && *claimUser.UserGroupID == level.UserGroupID {
+			// Check if user has permission for this status
+			switch req.Status {
+			case models.StatusDraft:
+				hasPermission = level.CanDraft
+			case models.StatusSubmitted:
+				hasPermission = level.CanSubmit
+			case models.StatusApproved:
+				hasPermission = level.CanApprove
+			case models.StatusRejected:
+				hasPermission = level.CanReject
+			case models.StatusPaymentInProgress:
+				hasPermission = level.CanSetPaymentInProgress
+			case models.StatusPaid:
+				hasPermission = level.CanSetPaid
+			}
+			if hasPermission {
+				break
+			}
+		}
+	}
+
+	if !hasPermission {
+		utils.WriteError(w, http.StatusForbidden, "You don't have permission to set this status")
+		return
+	}
+
+	// Update claim status
+	claim.Status = req.Status
+	if err := h.DB.Save(&claim).Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to update claim status")
+		return
+	}
+
+	// Create approval record
+	approval := models.ClaimApproval{
+		ClaimID:    claim.ID,
+		ApproverID: user.ID,
+		Status:     req.Status,
+		Comments:   req.Comments,
+	}
+
+	if err := h.DB.Create(&approval).Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to create approval record")
+		return
+	}
+
+	utils.WriteSuccess(w, claim, "Claim status updated successfully")
 }
 
 // Admin Users Management

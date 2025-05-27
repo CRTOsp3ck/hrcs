@@ -45,6 +45,15 @@ export interface Claim {
   approvals?: Approval[]
   created_at: string
   updated_at: string
+  // Enhanced fields for admin view
+  employee?: string
+  department?: string
+  type?: string
+  approvalsReceived?: number
+  approvalsRequired?: number
+  submittedDate?: string
+  canApprove?: boolean
+  allowedStatuses?: string[]
 }
 
 export type ClaimStatus = 
