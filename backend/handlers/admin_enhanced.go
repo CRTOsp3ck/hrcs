@@ -566,7 +566,15 @@ type Approver struct {
 
 func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, r *http.Request) {
 	var levels []models.ApprovalLevel
-	if err := h.DB.Preload("UserGroup").Preload("Approver").Order("level").Find(&levels).Error; err != nil {
+	query := h.DB.Preload("UserGroup").Preload("Approver").Order("user_group_id, level")
+	
+	// Filter by user group if specified
+	groupID := r.URL.Query().Get("groupId")
+	if groupID != "" {
+		query = query.Where("user_group_id = ?", groupID)
+	}
+	
+	if err := query.Find(&levels).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to retrieve approval levels")
 		return
 	}
@@ -598,9 +606,9 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 	}
 
 	var enhanced []EnhancedApprovalLevel
-	for i, level := range levels {
+	for _, level := range levels {
 		approvers := []Approver{}
-		if level.ApproverID > 0 {
+		if level.ApproverID > 0 && level.Approver.ID > 0 {
 			approvers = append(approvers, Approver{
 				Type: "user",
 				ID:   level.Approver.ID,
@@ -608,16 +616,20 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 			})
 		}
 
-		maxAmount := float64(10000 * (i + 1))
+		levelName := "Level " + strconv.Itoa(level.Level)
+		if level.UserGroup.Name != "" {
+			levelName += " - " + level.UserGroup.Name
+		}
+		
 		enhanced = append(enhanced, EnhancedApprovalLevel{
 			ID:                   level.ID,
 			Level:                level.Level,
 			UserGroupID:          level.UserGroupID,
 			UserGroup:            &level.UserGroup,
-			Name:                 "Level " + strconv.Itoa(level.Level) + " - " + level.UserGroup.Name,
+			Name:                 levelName,
 			Description:          "Approval level " + strconv.Itoa(level.Level) + " for " + level.UserGroup.Name,
-			MinAmount:            float64(1000 * i),
-			MaxAmount:            &maxAmount,
+			MinAmount:            0,
+			MaxAmount:            nil,
 			ClaimTypes:           []string{}, // All types
 			Approvers:            approvers,
 			RequiresAllApprovers: false,
@@ -639,33 +651,48 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 }
 
 func (h *AdminEnhancedHandler) CreateEnhancedApprovalLevel(w http.ResponseWriter, r *http.Request) {
-	var req EnhancedApprovalLevelRequest
+	var req struct {
+		UserGroupID uint `json:"userGroupId"`
+		ApproverID  uint `json:"approverId"`
+		// Status permissions
+		CanDraft                bool `json:"canDraft"`
+		CanSubmit               bool `json:"canSubmit"`
+		CanApprove              bool `json:"canApprove"`
+		CanReject               bool `json:"canReject"`
+		CanSetPaymentInProgress bool `json:"canSetPaymentInProgress"`
+		CanSetPaid              bool `json:"canSetPaid"`
+	}
+	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	// Get the next level number for the user group
-	var userGroupID uint
-	if len(req.Approvers) > 0 && req.Approvers[0].Type == "user" {
-		// Get user's group
-		var user models.User
-		if err := h.DB.First(&user, req.Approvers[0].ID).Error; err == nil && user.UserGroupID != nil {
-			userGroupID = *user.UserGroupID
-		}
+	// Validate user group exists
+	var userGroup models.UserGroup
+	if err := h.DB.First(&userGroup, req.UserGroupID).Error; err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid user group")
+		return
 	}
 
-	// Get the max level for this user group
-	var maxLevel int
-	if userGroupID > 0 {
-		h.DB.Model(&models.ApprovalLevel{}).Where("user_group_id = ?", userGroupID).Select("COALESCE(MAX(level), 0)").Scan(&maxLevel)
-	} else {
-		h.DB.Model(&models.ApprovalLevel{}).Select("COALESCE(MAX(level), 0)").Scan(&maxLevel)
+	// Validate approver exists
+	var approver models.User
+	if err := h.DB.First(&approver, req.ApproverID).Error; err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid approver")
+		return
 	}
+
+	// Get the next level number for this user group
+	var maxLevel int
+	h.DB.Model(&models.ApprovalLevel{}).
+		Where("user_group_id = ?", req.UserGroupID).
+		Select("COALESCE(MAX(level), 0)").
+		Scan(&maxLevel)
 
 	level := models.ApprovalLevel{
 		Level:                   maxLevel + 1,
-		UserGroupID:             userGroupID,
+		UserGroupID:             req.UserGroupID,
+		ApproverID:              req.ApproverID,
 		CanDraft:                req.CanDraft,
 		CanSubmit:               req.CanSubmit,
 		CanApprove:              req.CanApprove,
@@ -674,15 +701,13 @@ func (h *AdminEnhancedHandler) CreateEnhancedApprovalLevel(w http.ResponseWriter
 		CanSetPaid:              req.CanSetPaid,
 	}
 
-	// Set first approver if available
-	if len(req.Approvers) > 0 && req.Approvers[0].Type == "user" {
-		level.ApproverID = req.Approvers[0].ID
-	}
-
 	if err := h.DB.Create(&level).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to create approval level")
 		return
 	}
+
+	// Load associations for response
+	h.DB.Preload("UserGroup").Preload("Approver").First(&level, level.ID)
 
 	utils.WriteSuccess(w, level, "Approval level created successfully")
 }
@@ -734,9 +759,28 @@ func (h *AdminEnhancedHandler) DeleteEnhancedApprovalLevel(w http.ResponseWriter
 		return
 	}
 
+	// Get the level to be deleted
+	var levelToDelete models.ApprovalLevel
+	if err := h.DB.First(&levelToDelete, levelID).Error; err != nil {
+		utils.WriteError(w, http.StatusNotFound, "Approval level not found")
+		return
+	}
+
+	// Delete the level
 	if err := h.DB.Delete(&models.ApprovalLevel{}, levelID).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to delete approval level")
 		return
+	}
+
+	// Reorder remaining levels for this user group
+	var remainingLevels []models.ApprovalLevel
+	h.DB.Where("user_group_id = ? AND level > ?", levelToDelete.UserGroupID, levelToDelete.Level).
+		Order("level").Find(&remainingLevels)
+	
+	// Update levels to be continuous
+	for i, level := range remainingLevels {
+		newLevel := levelToDelete.Level + i
+		h.DB.Model(&level).Update("level", newLevel)
 	}
 
 	utils.WriteSuccess(w, nil, "Approval level deleted successfully")
@@ -744,9 +788,10 @@ func (h *AdminEnhancedHandler) DeleteEnhancedApprovalLevel(w http.ResponseWriter
 
 func (h *AdminEnhancedHandler) UpdateApprovalLevelOrder(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		UserGroupID uint `json:"userGroupId"`
 		Orders []struct {
 			ID    uint `json:"id"`
-			Order int  `json:"order"`
+			Level int  `json:"level"`
 		} `json:"orders"`
 	}
 
@@ -755,9 +800,139 @@ func (h *AdminEnhancedHandler) UpdateApprovalLevelOrder(w http.ResponseWriter, r
 		return
 	}
 
+	// Begin transaction
+	tx := h.DB.Begin()
+
+	// Update each level
 	for _, order := range req.Orders {
-		h.DB.Model(&models.ApprovalLevel{}).Where("id = ?", order.ID).Update("level", order.Order)
+		if err := tx.Model(&models.ApprovalLevel{}).
+			Where("id = ? AND user_group_id = ?", order.ID, req.UserGroupID).
+			Update("level", order.Level).Error; err != nil {
+			tx.Rollback()
+			utils.WriteError(w, http.StatusInternalServerError, "Failed to update approval level order")
+			return
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to update approval level order")
+		return
 	}
 
 	utils.WriteSuccess(w, nil, "Approval level order updated successfully")
+}
+
+// GetApprovalLevelsByGroup returns approval levels grouped by user group
+func (h *AdminEnhancedHandler) GetApprovalLevelsByGroup(w http.ResponseWriter, r *http.Request) {
+	var groups []models.UserGroup
+	if err := h.DB.Find(&groups).Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to retrieve user groups")
+		return
+	}
+
+	type GroupApprovalLevels struct {
+		GroupID   uint   `json:"groupId"`
+		GroupName string `json:"groupName"`
+		Levels    []struct {
+			ID         uint   `json:"id"`
+			Level      int    `json:"level"`
+			ApproverID uint   `json:"approverId"`
+			Approver   struct {
+				ID        uint   `json:"id"`
+				Name      string `json:"name"`
+				Email     string `json:"email"`
+				FirstName string `json:"firstName"`
+				LastName  string `json:"lastName"`
+			} `json:"approver"`
+			Permissions struct {
+				CanDraft                bool `json:"canDraft"`
+				CanSubmit               bool `json:"canSubmit"`
+				CanApprove              bool `json:"canApprove"`
+				CanReject               bool `json:"canReject"`
+				CanSetPaymentInProgress bool `json:"canSetPaymentInProgress"`
+				CanSetPaid              bool `json:"canSetPaid"`
+			} `json:"permissions"`
+		} `json:"levels"`
+	}
+
+	var result []GroupApprovalLevels
+
+	for _, group := range groups {
+		var levels []models.ApprovalLevel
+		h.DB.Preload("Approver").Where("user_group_id = ?", group.ID).Order("level").Find(&levels)
+
+		groupLevels := GroupApprovalLevels{
+			GroupID:   group.ID,
+			GroupName: group.Name,
+			Levels:    make([]struct {
+				ID         uint   `json:"id"`
+				Level      int    `json:"level"`
+				ApproverID uint   `json:"approverId"`
+				Approver   struct {
+					ID        uint   `json:"id"`
+					Name      string `json:"name"`
+					Email     string `json:"email"`
+					FirstName string `json:"firstName"`
+					LastName  string `json:"lastName"`
+				} `json:"approver"`
+				Permissions struct {
+					CanDraft                bool `json:"canDraft"`
+					CanSubmit               bool `json:"canSubmit"`
+					CanApprove              bool `json:"canApprove"`
+					CanReject               bool `json:"canReject"`
+					CanSetPaymentInProgress bool `json:"canSetPaymentInProgress"`
+					CanSetPaid              bool `json:"canSetPaid"`
+				} `json:"permissions"`
+			}, 0),
+		}
+
+		for _, level := range levels {
+			levelData := struct {
+				ID         uint   `json:"id"`
+				Level      int    `json:"level"`
+				ApproverID uint   `json:"approverId"`
+				Approver   struct {
+					ID        uint   `json:"id"`
+					Name      string `json:"name"`
+					Email     string `json:"email"`
+					FirstName string `json:"firstName"`
+					LastName  string `json:"lastName"`
+				} `json:"approver"`
+				Permissions struct {
+					CanDraft                bool `json:"canDraft"`
+					CanSubmit               bool `json:"canSubmit"`
+					CanApprove              bool `json:"canApprove"`
+					CanReject               bool `json:"canReject"`
+					CanSetPaymentInProgress bool `json:"canSetPaymentInProgress"`
+					CanSetPaid              bool `json:"canSetPaid"`
+				} `json:"permissions"`
+			}{
+				ID:         level.ID,
+				Level:      level.Level,
+				ApproverID: level.ApproverID,
+			}
+
+			if level.Approver.ID > 0 {
+				levelData.Approver.ID = level.Approver.ID
+				levelData.Approver.Name = level.Approver.FirstName + " " + level.Approver.LastName
+				levelData.Approver.Email = level.Approver.Email
+				levelData.Approver.FirstName = level.Approver.FirstName
+				levelData.Approver.LastName = level.Approver.LastName
+			}
+
+			levelData.Permissions.CanDraft = level.CanDraft
+			levelData.Permissions.CanSubmit = level.CanSubmit
+			levelData.Permissions.CanApprove = level.CanApprove
+			levelData.Permissions.CanReject = level.CanReject
+			levelData.Permissions.CanSetPaymentInProgress = level.CanSetPaymentInProgress
+			levelData.Permissions.CanSetPaid = level.CanSetPaid
+
+			groupLevels.Levels = append(groupLevels.Levels, levelData)
+		}
+
+		result = append(result, groupLevels)
+	}
+
+	utils.WriteSuccess(w, result)
 }

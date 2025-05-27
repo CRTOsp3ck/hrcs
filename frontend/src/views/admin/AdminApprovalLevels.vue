@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="page-header">
       <h1 class="page-title">Approval Levels</h1>
-      <p class="page-subtitle">Configure approval levels and permissions for each user group</p>
+      <p class="page-subtitle">Configure approval hierarchy and permissions for each user group</p>
     </div>
 
     <!-- Info Banner -->
@@ -10,146 +10,262 @@
       <template #default>
         <div class="info-content">
           <i class="pi pi-info-circle"></i>
-          <span>Each user group can have multiple approval levels (1, 2, 3, etc.) with different status permissions.</span>
+          <span>Add approvers to each user group. They are automatically assigned levels (1st, 2nd, 3rd approver, etc.). You can drag to reorder the approval hierarchy.</span>
         </div>
       </template>
     </Message>
 
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <Button label="Add Approval Level" icon="pi pi-plus" @click="showAddDialog = true" />
-      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" @click="loadApprovalLevels" :loading="loading" />
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-container">
+      <ProgressSpinner />
+      <p>Loading approval levels...</p>
     </div>
 
-    <!-- Approval Levels Table -->
-    <DataTable 
-      :value="approvalLevels" 
-      :loading="loading"
-      stripedRows
-      showGridlines
-      class="approval-levels-table"
-    >
-      <template #empty>
-        <div class="empty-state">
-          <i class="pi pi-sitemap"></i>
-          <p>No approval levels configured</p>
-        </div>
-      </template>
+    <!-- Debug Info -->
+    <div v-else-if="!loading && groupsWithLevels.length === 0" class="debug-info">
+      <Message severity="warn">
+        <p>No approval level groups found. This could mean:</p>
+        <ul>
+          <li>No user groups exist in the system</li>
+          <li>The API endpoint is not returning data correctly</li>
+          <li>Check the browser console for errors</li>
+        </ul>
+      </Message>
+      <div class="debug-data">
+        <h4>Debug Data:</h4>
+        <pre>{{ JSON.stringify(groupsWithLevels, null, 2) }}</pre>
+      </div>
+    </div>
 
-      <Column field="user_group.name" header="User Group" sortable>
-        <template #body="{ data }">
-          <Tag :value="data.user_group?.name || 'N/A'" severity="info" />
-        </template>
-      </Column>
-
-      <Column field="level" header="Level" sortable>
-        <template #body="{ data }">
-          <Badge :value="`Level ${data.level}`" severity="success" />
-        </template>
-      </Column>
-
-      <Column field="approver.name" header="Approver">
-        <template #body="{ data }">
-          <div class="approver-info">
-            <Avatar 
-              :label="getInitials(data.approver)" 
+    <!-- User Groups with Approval Levels -->
+    <div v-else class="groups-container">
+      <Panel v-for="group in groupsWithLevels" :key="group.groupId" class="group-panel">
+        <template #header>
+          <div class="group-header">
+            <div class="group-info">
+              <h3>{{ group.groupName }}</h3>
+              <Tag :value="`${group.levels.length} Approver${group.levels.length !== 1 ? 's' : ''}`" severity="info" />
+            </div>
+            <Button 
+              label="Add Approver" 
+              icon="pi pi-plus" 
               size="small"
-              style="margin-right: 0.5rem"
-            />
-            {{ data.approver?.first_name }} {{ data.approver?.last_name }}
-          </div>
-        </template>
-      </Column>
-
-      <Column header="Status Permissions">
-        <template #body="{ data }">
-          <div class="permissions-grid">
-            <Tag v-if="data.can_draft" value="Draft" severity="secondary" />
-            <Tag v-if="data.can_submit" value="Submit" severity="info" />
-            <Tag v-if="data.can_approve" value="Approve" severity="success" />
-            <Tag v-if="data.can_reject" value="Reject" severity="danger" />
-            <Tag v-if="data.can_set_payment_in_progress" value="Payment in Progress" severity="warning" />
-            <Tag v-if="data.can_set_paid" value="Paid" severity="success" />
-          </div>
-        </template>
-      </Column>
-
-      <Column header="Actions" style="width: 150px">
-        <template #body="{ data }">
-          <div class="action-buttons">
-            <Button 
-              icon="pi pi-pencil" 
-              severity="secondary" 
-              text 
-              @click="editLevel(data)"
-              v-tooltip.top="'Edit'"
-            />
-            <Button 
-              icon="pi pi-trash" 
-              severity="danger" 
-              text 
-              @click="confirmDelete(data)"
-              v-tooltip.top="'Delete'"
+              @click="openAddApprover(group.groupId, group.groupName)"
             />
           </div>
         </template>
-      </Column>
-    </DataTable>
 
-    <!-- Add/Edit Dialog -->
+        <!-- Empty State -->
+        <div v-if="group.levels.length === 0" class="empty-group">
+          <i class="pi pi-users"></i>
+          <p>No approvers configured for this group</p>
+          <Button 
+            label="Add First Approver" 
+            icon="pi pi-plus" 
+            severity="secondary"
+            @click="openAddApprover(group.groupId, group.groupName)"
+          />
+        </div>
+
+        <!-- Draggable Approval Levels -->
+        <draggable 
+          v-else
+          v-model="group.levels"
+          group="approvers"
+          item-key="id"
+          handle=".drag-handle"
+          animation="200"
+          @end="onDragEnd(group)"
+          class="levels-list"
+        >
+          <template #item="{ element: level, index }">
+            <div class="level-card">
+              <div class="level-header">
+                <div class="level-info">
+                  <Button 
+                    icon="pi pi-bars" 
+                    class="drag-handle"
+                    severity="secondary"
+                    text
+                    v-tooltip.top="'Drag to reorder'"
+                  />
+                  <Badge :value="`Level ${index + 1}`" :severity="getLevelSeverity(index)" />
+                  <div class="approver-details">
+                    <Avatar 
+                      :label="getInitials(level.approver)" 
+                      size="small"
+                      :style="{ backgroundColor: getAvatarColor(level.approver.id) }"
+                    />
+                    <div>
+                      <div class="approver-name">{{ level.approver.name }}</div>
+                      <div class="approver-email">{{ level.approver.email }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="level-actions">
+                  <Button 
+                    icon="pi pi-pencil" 
+                    severity="secondary" 
+                    text 
+                    size="small"
+                    @click="editLevel(level)"
+                    v-tooltip.top="'Edit permissions'"
+                  />
+                  <Button 
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    text 
+                    size="small"
+                    @click="confirmDelete(level, group)"
+                    v-tooltip.top="'Remove approver'"
+                  />
+                </div>
+              </div>
+              <div class="permissions-display">
+                <Tag v-if="level.permissions.canDraft" value="Draft" severity="secondary" />
+                <Tag v-if="level.permissions.canSubmit" value="Submit" severity="info" />
+                <Tag v-if="level.permissions.canApprove" value="Approve" severity="success" />
+                <Tag v-if="level.permissions.canReject" value="Reject" severity="danger" />
+                <Tag v-if="level.permissions.canSetPaymentInProgress" value="Payment in Progress" severity="warning" />
+                <Tag v-if="level.permissions.canSetPaid" value="Paid" severity="success" />
+              </div>
+            </div>
+          </template>
+        </draggable>
+      </Panel>
+    </div>
+
+    <!-- Add Approver Dialog -->
     <Dialog 
       v-model:visible="showAddDialog" 
-      :header="editingItem ? 'Edit Approval Level' : 'Add Approval Level'"
-      :style="{ width: '600px' }"
+      header="Add Approver"
+      :style="{ width: '500px' }"
       modal
     >
       <div class="form-container">
         <div class="field">
-          <label for="userGroup">User Group *</label>
-          <Dropdown
-            id="userGroup"
-            v-model="form.user_group_id"
-            :options="availableGroups"
-            optionLabel="name"
-            optionValue="id"
-            placeholder="Select a user group"
-            class="w-full"
-            :disabled="editingItem"
-          />
+          <label>User Group</label>
+          <div class="group-display">
+            <Tag :value="selectedGroupName" severity="info" />
+          </div>
         </div>
 
         <div class="field">
-          <label for="level">Level *</label>
-          <InputNumber
-            id="level"
-            v-model="form.level"
-            :min="1"
-            :max="10"
-            placeholder="Enter level (1, 2, 3...)"
-            class="w-full"
-            :disabled="editingItem"
-          />
-        </div>
-
-        <div class="field">
-          <label for="approver">Approver *</label>
+          <label for="approver">Select Approver *</label>
           <Dropdown
             id="approver"
-            v-model="form.approver_id"
-            :options="availableUsers"
+            v-model="addForm.approverId"
+            :options="availableApprovers"
             optionLabel="name"
             optionValue="id"
-            placeholder="Select an approver"
+            placeholder="Choose an approver"
             class="w-full"
             filter
+            :loading="loadingUsers"
           >
             <template #option="{ option }">
               <div class="approver-option">
-                <Avatar :label="getInitials(option)" size="small" style="margin-right: 0.5rem" />
-                {{ option.name }}
+                <Avatar 
+                  :label="getInitials(option)" 
+                  size="small" 
+                  :style="{ backgroundColor: getAvatarColor(option.id), marginRight: '0.5rem' }"
+                />
+                <div>
+                  <div>{{ option.name }}</div>
+                  <div class="option-subtitle">{{ option.email }}</div>
+                </div>
               </div>
             </template>
           </Dropdown>
+        </div>
+
+        <Divider />
+
+        <div class="field">
+          <label>Permissions</label>
+          <div class="permissions-info">
+            <i class="pi pi-info-circle"></i>
+            <span>This approver will be assigned as Level {{ nextLevel }} approver</span>
+          </div>
+          <div class="permissions-checkboxes">
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="addForm.permissions.canDraft" 
+                inputId="addCanDraft" 
+                binary 
+              />
+              <label for="addCanDraft">Can set to Draft</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="addForm.permissions.canSubmit" 
+                inputId="addCanSubmit" 
+                binary 
+              />
+              <label for="addCanSubmit">Can Submit claims</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="addForm.permissions.canApprove" 
+                inputId="addCanApprove" 
+                binary 
+              />
+              <label for="addCanApprove">Can Approve claims</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="addForm.permissions.canReject" 
+                inputId="addCanReject" 
+                binary 
+              />
+              <label for="addCanReject">Can Reject claims</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="addForm.permissions.canSetPaymentInProgress" 
+                inputId="addCanSetPaymentInProgress" 
+                binary 
+              />
+              <label for="addCanSetPaymentInProgress">Can set Payment in Progress</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="addForm.permissions.canSetPaid" 
+                inputId="addCanSetPaid" 
+                binary 
+              />
+              <label for="addCanSetPaid">Can mark as Paid</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <Button label="Cancel" severity="secondary" @click="closeAddDialog" />
+        <Button label="Add Approver" @click="addApprover" :loading="saving" />
+      </template>
+    </Dialog>
+
+    <!-- Edit Permissions Dialog -->
+    <Dialog 
+      v-model:visible="showEditDialog" 
+      header="Edit Permissions"
+      :style="{ width: '500px' }"
+      modal
+    >
+      <div class="form-container">
+        <div class="field">
+          <label>Approver</label>
+          <div class="approver-display">
+            <Avatar 
+              :label="editingLevel ? getInitials(editingLevel.approver) : ''" 
+              :style="{ backgroundColor: editingLevel ? getAvatarColor(editingLevel.approver.id) : '' }"
+            />
+            <div>
+              <div class="approver-name">{{ editingLevel?.approver.name }}</div>
+              <div class="approver-email">{{ editingLevel?.approver.email }}</div>
+            </div>
+          </div>
         </div>
 
         <Divider />
@@ -159,130 +275,181 @@
           <div class="permissions-checkboxes">
             <div class="checkbox-item">
               <Checkbox 
-                v-model="form.can_draft" 
-                inputId="canDraft" 
+                v-model="editForm.permissions.canDraft" 
+                inputId="editCanDraft" 
                 binary 
               />
-              <label for="canDraft">Can set to Draft</label>
+              <label for="editCanDraft">Can set to Draft</label>
             </div>
             <div class="checkbox-item">
               <Checkbox 
-                v-model="form.can_submit" 
-                inputId="canSubmit" 
+                v-model="editForm.permissions.canSubmit" 
+                inputId="editCanSubmit" 
                 binary 
               />
-              <label for="canSubmit">Can Submit claims</label>
+              <label for="editCanSubmit">Can Submit claims</label>
             </div>
             <div class="checkbox-item">
               <Checkbox 
-                v-model="form.can_approve" 
-                inputId="canApprove" 
+                v-model="editForm.permissions.canApprove" 
+                inputId="editCanApprove" 
                 binary 
               />
-              <label for="canApprove">Can Approve claims</label>
+              <label for="editCanApprove">Can Approve claims</label>
             </div>
             <div class="checkbox-item">
               <Checkbox 
-                v-model="form.can_reject" 
-                inputId="canReject" 
+                v-model="editForm.permissions.canReject" 
+                inputId="editCanReject" 
                 binary 
               />
-              <label for="canReject">Can Reject claims</label>
+              <label for="editCanReject">Can Reject claims</label>
             </div>
             <div class="checkbox-item">
               <Checkbox 
-                v-model="form.can_set_payment_in_progress" 
-                inputId="canSetPaymentInProgress" 
+                v-model="editForm.permissions.canSetPaymentInProgress" 
+                inputId="editCanSetPaymentInProgress" 
                 binary 
               />
-              <label for="canSetPaymentInProgress">Can set Payment in Progress</label>
+              <label for="editCanSetPaymentInProgress">Can set Payment in Progress</label>
             </div>
             <div class="checkbox-item">
               <Checkbox 
-                v-model="form.can_set_paid" 
-                inputId="canSetPaid" 
+                v-model="editForm.permissions.canSetPaid" 
+                inputId="editCanSetPaid" 
                 binary 
               />
-              <label for="canSetPaid">Can mark as Paid</label>
+              <label for="editCanSetPaid">Can mark as Paid</label>
             </div>
           </div>
         </div>
       </div>
       
       <template #footer>
-        <Button label="Cancel" severity="secondary" @click="showAddDialog = false" />
-        <Button label="Save" @click="saveItem" :loading="saving" />
+        <Button label="Cancel" severity="secondary" @click="showEditDialog = false" />
+        <Button label="Save Changes" @click="updatePermissions" :loading="saving" />
       </template>
     </Dialog>
 
     <!-- Delete Confirmation -->
     <Dialog 
       v-model:visible="showDeleteDialog" 
-      header="Confirm Delete"
-      :style="{ width: '400px' }"
+      header="Confirm Remove"
+      :style="{ width: '450px' }"
       modal
     >
       <div class="confirmation-content">
         <i class="pi pi-exclamation-triangle" style="font-size: 2rem; color: var(--red-500)"></i>
-        <p>Are you sure you want to delete this approval level?</p>
-        <p class="text-secondary">This action cannot be undone.</p>
+        <p>Are you sure you want to remove <strong>{{ levelToDelete?.approver.name }}</strong> as an approver?</p>
+        <p class="text-secondary">This will automatically adjust the levels of remaining approvers in this group.</p>
       </div>
       
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="showDeleteDialog = false" />
-        <Button label="Delete" severity="danger" @click="deleteItem" />
+        <Button label="Remove Approver" severity="danger" @click="deleteLevel" :loading="deleting" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { approvalLevelsApi, userGroupsApi, usersApi } from '@/api'
-import type { ApprovalLevel, UserGroup, User } from '@/types'
+import draggable from 'vuedraggable'
+import api from '@/api'
 
 const toast = useToast()
 
+// State
 const loading = ref(false)
+const loadingUsers = ref(false)
 const saving = ref(false)
-const approvalLevels = ref<ApprovalLevel[]>([])
-const availableUsers = ref<User[]>([])
-const availableGroups = ref<UserGroup[]>([])
+const deleting = ref(false)
+const groupsWithLevels = ref<any[]>([])
+const availableUsers = ref<any[]>([])
 const showAddDialog = ref(false)
+const showEditDialog = ref(false)
 const showDeleteDialog = ref(false)
-const editingItem = ref<ApprovalLevel | null>(null)
-const itemToDelete = ref<ApprovalLevel | null>(null)
+const selectedGroupId = ref<number | null>(null)
+const selectedGroupName = ref('')
+const editingLevel = ref<any>(null)
+const levelToDelete = ref<any>(null)
+const groupToDelete = ref<any>(null)
 
-const form = ref({
-  user_group_id: null as number | null,
-  level: 1,
-  approver_id: null as number | null,
-  can_draft: false,
-  can_submit: false,
-  can_approve: true,
-  can_reject: true,
-  can_set_payment_in_progress: false,
-  can_set_paid: false
+// Forms
+const addForm = ref({
+  approverId: null as number | null,
+  permissions: {
+    canDraft: false,
+    canSubmit: false,
+    canApprove: true,
+    canReject: true,
+    canSetPaymentInProgress: false,
+    canSetPaid: false
+  }
 })
 
+const editForm = ref({
+  permissions: {
+    canDraft: false,
+    canSubmit: false,
+    canApprove: true,
+    canReject: true,
+    canSetPaymentInProgress: false,
+    canSetPaid: false
+  }
+})
+
+// Computed
+const nextLevel = computed(() => {
+  if (!selectedGroupId.value) return 1
+  const group = groupsWithLevels.value.find(g => g.groupId === selectedGroupId.value)
+  return group ? group.levels.length + 1 : 1
+})
+
+const availableApprovers = computed(() => {
+  if (!selectedGroupId.value) return []
+  
+  const group = groupsWithLevels.value.find(g => g.groupId === selectedGroupId.value)
+  if (!group) return availableUsers.value
+
+  // Filter out users who are already approvers for this group
+  const existingApproverIds = group.levels.map((l: any) => l.approverId)
+  return availableUsers.value.filter(user => !existingApproverIds.includes(user.id))
+})
+
+// Methods
 const getInitials = (user: any) => {
   if (!user) return '?'
-  const firstName = user.first_name || user.firstName || ''
-  const lastName = user.last_name || user.lastName || ''
-  return (firstName[0] || '') + (lastName[0] || '')
+  const names = user.name ? user.name.split(' ') : [user.firstName || '', user.lastName || '']
+  return names.map((n: string) => n[0] || '').join('').toUpperCase() || '?'
+}
+
+const getAvatarColor = (userId: number) => {
+  const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#795548']
+  return colors[userId % colors.length]
+}
+
+const getLevelSeverity = (index: number) => {
+  const severities = ['success', 'info', 'warning']
+  return severities[index % severities.length]
 }
 
 const loadApprovalLevels = async () => {
   loading.value = true
   try {
-    const response = await approvalLevelsApi.getAll()
-    approvalLevels.value = response.data.data || []
-  } catch (error) {
+    console.log('Loading approval levels...')
+    const response = await api.get('/admin/approval-levels/by-group')
+    console.log('Response:', response.data)
+    groupsWithLevels.value = response.data.data || []
+    console.log('Groups with levels:', groupsWithLevels.value)
+  } catch (error: any) {
+    console.error('Failed to load approval levels:', error)
+    console.error('Error response:', error.response?.data)
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to load approval levels',
+      detail: error.response?.data?.message || 'Failed to load approval levels',
       life: 3000
     })
   } finally {
@@ -290,52 +457,58 @@ const loadApprovalLevels = async () => {
   }
 }
 
-const loadResources = async () => {
+const loadUsers = async () => {
+  loadingUsers.value = true
   try {
-    const [usersRes, groupsRes] = await Promise.all([
-      usersApi.getAll(),
-      userGroupsApi.getAll()
-    ])
-    
-    // Format users for display
-    availableUsers.value = (usersRes.data.data || []).map(user => ({
-      ...user,
-      name: `${user.first_name || ''} ${user.last_name || ''}`
+    const response = await api.get('/admin/users')
+    availableUsers.value = (response.data.data || []).map((user: any) => ({
+      id: user.id,
+      name: user.name || `${user.first_name} ${user.last_name}`,
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name
     }))
-    
-    availableGroups.value = groupsRes.data.data || []
   } catch (error) {
-    console.error('Failed to load resources:', error)
+    console.error('Failed to load users:', error)
+  } finally {
+    loadingUsers.value = false
   }
 }
 
-const editLevel = (level: ApprovalLevel) => {
-  editingItem.value = level
-  form.value = {
-    user_group_id: level.user_group_id,
-    level: level.level,
-    approver_id: level.approver_id,
-    can_draft: level.can_draft,
-    can_submit: level.can_submit,
-    can_approve: level.can_approve,
-    can_reject: level.can_reject,
-    can_set_payment_in_progress: level.can_set_payment_in_progress,
-    can_set_paid: level.can_set_paid
-  }
+const openAddApprover = (groupId: number, groupName: string) => {
+  selectedGroupId.value = groupId
+  selectedGroupName.value = groupName
+  resetAddForm()
   showAddDialog.value = true
 }
 
-const confirmDelete = (level: ApprovalLevel) => {
-  itemToDelete.value = level
-  showDeleteDialog.value = true
+const closeAddDialog = () => {
+  showAddDialog.value = false
+  selectedGroupId.value = null
+  selectedGroupName.value = ''
+  resetAddForm()
 }
 
-const saveItem = async () => {
-  if (!form.value.user_group_id || !form.value.approver_id) {
+const resetAddForm = () => {
+  addForm.value = {
+    approverId: null,
+    permissions: {
+      canDraft: false,
+      canSubmit: false,
+      canApprove: true,
+      canReject: true,
+      canSetPaymentInProgress: false,
+      canSetPaid: false
+    }
+  }
+}
+
+const addApprover = async () => {
+  if (!addForm.value.approverId || !selectedGroupId.value) {
     toast.add({
       severity: 'warn',
       summary: 'Validation Error',
-      detail: 'Please fill all required fields',
+      detail: 'Please select an approver',
       life: 3000
     })
     return
@@ -343,31 +516,31 @@ const saveItem = async () => {
 
   saving.value = true
   try {
-    if (editingItem.value) {
-      await approvalLevelsApi.update(editingItem.value.id, form.value)
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Approval level updated successfully',
-        life: 3000
-      })
-    } else {
-      await approvalLevelsApi.create(form.value)
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Approval level created successfully',
-        life: 3000
-      })
-    }
-    showAddDialog.value = false
-    loadApprovalLevels()
-    resetForm()
+    await api.post('/admin/approval-levels', {
+      userGroupId: selectedGroupId.value,
+      approverId: addForm.value.approverId,
+      canDraft: addForm.value.permissions.canDraft,
+      canSubmit: addForm.value.permissions.canSubmit,
+      canApprove: addForm.value.permissions.canApprove,
+      canReject: addForm.value.permissions.canReject,
+      canSetPaymentInProgress: addForm.value.permissions.canSetPaymentInProgress,
+      canSetPaid: addForm.value.permissions.canSetPaid
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Approver added successfully',
+      life: 3000
+    })
+
+    closeAddDialog()
+    await loadApprovalLevels()
   } catch (error: any) {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.message || 'Failed to save approval level',
+      detail: error.response?.data?.message || 'Failed to add approver',
       life: 3000
     })
   } finally {
@@ -375,47 +548,122 @@ const saveItem = async () => {
   }
 }
 
-const deleteItem = async () => {
-  if (!itemToDelete.value) return
+const editLevel = (level: any) => {
+  editingLevel.value = level
+  editForm.value.permissions = { ...level.permissions }
+  showEditDialog.value = true
+}
 
+const updatePermissions = async () => {
+  if (!editingLevel.value) return
+
+  saving.value = true
   try {
-    await approvalLevelsApi.delete(itemToDelete.value.id)
+    await api.put(`/admin/approval-levels/${editingLevel.value.id}`, {
+      canDraft: editForm.value.permissions.canDraft,
+      canSubmit: editForm.value.permissions.canSubmit,
+      canApprove: editForm.value.permissions.canApprove,
+      canReject: editForm.value.permissions.canReject,
+      canSetPaymentInProgress: editForm.value.permissions.canSetPaymentInProgress,
+      canSetPaid: editForm.value.permissions.canSetPaid
+    })
+
     toast.add({
       severity: 'success',
       summary: 'Success',
-      detail: 'Approval level deleted successfully',
+      detail: 'Permissions updated successfully',
       life: 3000
     })
-    showDeleteDialog.value = false
-    loadApprovalLevels()
+
+    showEditDialog.value = false
+    await loadApprovalLevels()
   } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to delete approval level',
+      detail: 'Failed to update permissions',
       life: 3000
     })
+  } finally {
+    saving.value = false
   }
 }
 
-const resetForm = () => {
-  editingItem.value = null
-  form.value = {
-    user_group_id: null,
-    level: 1,
-    approver_id: null,
-    can_draft: false,
-    can_submit: false,
-    can_approve: true,
-    can_reject: true,
-    can_set_payment_in_progress: false,
-    can_set_paid: false
+const confirmDelete = (level: any, group: any) => {
+  levelToDelete.value = level
+  groupToDelete.value = group
+  showDeleteDialog.value = true
+}
+
+const deleteLevel = async () => {
+  if (!levelToDelete.value) return
+
+  deleting.value = true
+  try {
+    await api.delete(`/admin/approval-levels/${levelToDelete.value.id}`)
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Approver removed successfully',
+      life: 3000
+    })
+
+    showDeleteDialog.value = false
+    await loadApprovalLevels()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to remove approver',
+      life: 3000
+    })
+  } finally {
+    deleting.value = false
+    levelToDelete.value = null
+    groupToDelete.value = null
   }
 }
 
+const onDragEnd = async (group: any) => {
+  // Update the level numbers based on new order
+  const orders = group.levels.map((level: any, index: number) => ({
+    id: level.id,
+    level: index + 1
+  }))
+
+  try {
+    await api.put('/admin/approval-levels/order', {
+      userGroupId: group.groupId,
+      orders
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Approval order updated',
+      life: 3000
+    })
+
+    // Reload to ensure consistency
+    await loadApprovalLevels()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update approval order',
+      life: 3000
+    })
+    // Reload to revert changes
+    await loadApprovalLevels()
+  }
+}
+
+// Lifecycle
 onMounted(() => {
+  console.log('AdminApprovalLevels component mounted')
   loadApprovalLevels()
-  loadResources()
+  loadUsers()
 })
 </script>
 
@@ -451,45 +699,130 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-.toolbar {
+.loading-container {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  color: var(--text-color-secondary);
 }
 
-.approval-levels-table {
+.groups-container {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.group-panel {
   background: var(--surface-card);
-  border-radius: var(--border-radius);
-  overflow: hidden;
 }
 
-.empty-state {
+.group-panel :deep(.p-panel-header) {
+  background: var(--surface-b);
+  border: none;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.group-info h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.empty-group {
   text-align: center;
   padding: 3rem;
   color: var(--text-color-secondary);
 }
 
-.empty-state i {
+.empty-group i {
   font-size: 3rem;
   margin-bottom: 1rem;
   display: block;
   opacity: 0.3;
 }
 
-.approver-info {
-  display: flex;
-  align-items: center;
+.empty-group p {
+  margin: 0 0 1rem 0;
 }
 
-.permissions-grid {
+.levels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.level-card {
+  background: var(--surface-a);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  transition: all 0.2s;
+}
+
+.level-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.level-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.level-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.drag-handle {
+  cursor: move;
+}
+
+.drag-handle:hover {
+  background-color: var(--surface-100);
+}
+
+.approver-details {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.approver-name {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.approver-email {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.level-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.permissions-display {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.25rem;
+  margin-left: 3rem;
 }
 
 .form-container {
@@ -507,6 +840,23 @@ onMounted(() => {
 .field label {
   font-weight: 500;
   color: var(--text-color);
+}
+
+.group-display {
+  padding: 0.5rem;
+  background: var(--surface-a);
+  border-radius: var(--border-radius);
+}
+
+.permissions-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--blue-50);
+  color: var(--blue-700);
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
 }
 
 .permissions-checkboxes {
@@ -531,6 +881,21 @@ onMounted(() => {
 .approver-option {
   display: flex;
   align-items: center;
+  padding: 0.5rem 0;
+}
+
+.option-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+}
+
+.approver-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--surface-a);
+  border-radius: var(--border-radius);
 }
 
 .confirmation-content {
@@ -549,5 +914,40 @@ onMounted(() => {
 
 .w-full {
   width: 100%;
+}
+
+/* Draggable styles */
+.sortable-ghost {
+  opacity: 0.5;
+}
+
+.sortable-drag {
+  background: var(--surface-b);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Debug styles */
+.debug-info {
+  margin-top: 2rem;
+}
+
+.debug-data {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface-a);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+}
+
+.debug-data h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-color-secondary);
+}
+
+.debug-data pre {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  white-space: pre-wrap;
 }
 </style>
