@@ -548,6 +548,13 @@ type EnhancedApprovalLevelRequest struct {
 	NotifyApprovers      bool        `json:"notifyApprovers"`
 	EscalationDays       *int        `json:"escalationDays"`
 	ReminderDays         *int        `json:"reminderDays"`
+	// Status permissions
+	CanDraft                bool        `json:"canDraft"`
+	CanSubmit               bool        `json:"canSubmit"`
+	CanApprove              bool        `json:"canApprove"`
+	CanReject               bool        `json:"canReject"`
+	CanSetPaymentInProgress bool        `json:"canSetPaymentInProgress"`
+	CanSetPaid              bool        `json:"canSetPaid"`
 }
 
 type Approver struct {
@@ -567,6 +574,9 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 	// Enhanced response
 	type EnhancedApprovalLevel struct {
 		ID                   uint       `json:"id"`
+		Level                int        `json:"level"`
+		UserGroupID          uint       `json:"userGroupId"`
+		UserGroup            *models.UserGroup `json:"userGroup,omitempty"`
 		Name                 string     `json:"name"`
 		Description          string     `json:"description"`
 		MinAmount            float64    `json:"minAmount"`
@@ -578,6 +588,13 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 		NotifyApprovers      bool       `json:"notifyApprovers"`
 		EscalationDays       *int       `json:"escalationDays"`
 		ReminderDays         *int       `json:"reminderDays"`
+		// Status permissions
+		CanDraft                bool       `json:"canDraft"`
+		CanSubmit               bool       `json:"canSubmit"`
+		CanApprove              bool       `json:"canApprove"`
+		CanReject               bool       `json:"canReject"`
+		CanSetPaymentInProgress bool       `json:"canSetPaymentInProgress"`
+		CanSetPaid              bool       `json:"canSetPaid"`
 	}
 
 	var enhanced []EnhancedApprovalLevel
@@ -594,8 +611,11 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 		maxAmount := float64(10000 * (i + 1))
 		enhanced = append(enhanced, EnhancedApprovalLevel{
 			ID:                   level.ID,
-			Name:                 "Level " + strconv.Itoa(level.Level),
-			Description:          "Approval level " + strconv.Itoa(level.Level),
+			Level:                level.Level,
+			UserGroupID:          level.UserGroupID,
+			UserGroup:            &level.UserGroup,
+			Name:                 "Level " + strconv.Itoa(level.Level) + " - " + level.UserGroup.Name,
+			Description:          "Approval level " + strconv.Itoa(level.Level) + " for " + level.UserGroup.Name,
 			MinAmount:            float64(1000 * i),
 			MaxAmount:            &maxAmount,
 			ClaimTypes:           []string{}, // All types
@@ -605,6 +625,13 @@ func (h *AdminEnhancedHandler) GetEnhancedApprovalLevels(w http.ResponseWriter, 
 			NotifyApprovers:      true,
 			EscalationDays:       nil,
 			ReminderDays:         nil,
+			// Status permissions from database
+			CanDraft:                level.CanDraft,
+			CanSubmit:               level.CanSubmit,
+			CanApprove:              level.CanApprove,
+			CanReject:               level.CanReject,
+			CanSetPaymentInProgress: level.CanSetPaymentInProgress,
+			CanSetPaid:              level.CanSetPaid,
 		})
 	}
 
@@ -618,14 +645,33 @@ func (h *AdminEnhancedHandler) CreateEnhancedApprovalLevel(w http.ResponseWriter
 		return
 	}
 
-	// Get the next level number
+	// Get the next level number for the user group
+	var userGroupID uint
+	if len(req.Approvers) > 0 && req.Approvers[0].Type == "user" {
+		// Get user's group
+		var user models.User
+		if err := h.DB.First(&user, req.Approvers[0].ID).Error; err == nil && user.UserGroupID != nil {
+			userGroupID = *user.UserGroupID
+		}
+	}
+
+	// Get the max level for this user group
 	var maxLevel int
-	h.DB.Model(&models.ApprovalLevel{}).Select("COALESCE(MAX(level), 0)").Scan(&maxLevel)
+	if userGroupID > 0 {
+		h.DB.Model(&models.ApprovalLevel{}).Where("user_group_id = ?", userGroupID).Select("COALESCE(MAX(level), 0)").Scan(&maxLevel)
+	} else {
+		h.DB.Model(&models.ApprovalLevel{}).Select("COALESCE(MAX(level), 0)").Scan(&maxLevel)
+	}
 
 	level := models.ApprovalLevel{
-		Level:       maxLevel + 1,
-		CanApprove:  true,
-		CanReject:   true,
+		Level:                   maxLevel + 1,
+		UserGroupID:             userGroupID,
+		CanDraft:                req.CanDraft,
+		CanSubmit:               req.CanSubmit,
+		CanApprove:              req.CanApprove,
+		CanReject:               req.CanReject,
+		CanSetPaymentInProgress: req.CanSetPaymentInProgress,
+		CanSetPaid:              req.CanSetPaid,
 	}
 
 	// Set first approver if available
@@ -659,6 +705,14 @@ func (h *AdminEnhancedHandler) UpdateEnhancedApprovalLevel(w http.ResponseWriter
 		utils.WriteError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+
+	// Update status permissions
+	level.CanDraft = req.CanDraft
+	level.CanSubmit = req.CanSubmit
+	level.CanApprove = req.CanApprove
+	level.CanReject = req.CanReject
+	level.CanSetPaymentInProgress = req.CanSetPaymentInProgress
+	level.CanSetPaid = req.CanSetPaid
 
 	// Update approver if provided
 	if len(req.Approvers) > 0 && req.Approvers[0].Type == "user" {

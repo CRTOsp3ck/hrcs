@@ -116,6 +116,7 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 				r.Route("/approval-levels", func(r chi.Router) {
 					r.Get("/", adminHandler.GetApprovalLevels)
 					r.Post("/", adminHandler.CreateApprovalLevel)
+					r.Put("/{id}", adminHandler.UpdateApprovalLevel)
 					r.Delete("/{id}", adminHandler.DeleteApprovalLevel)
 				})
 			})

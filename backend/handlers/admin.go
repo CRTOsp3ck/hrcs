@@ -27,11 +27,15 @@ type CreateUserGroupRequest struct {
 }
 
 type CreateApprovalLevelRequest struct {
-	Level       int  `json:"level"`
-	UserGroupID uint `json:"user_group_id"`
-	ApproverID  uint `json:"approver_id"`
-	CanApprove  bool `json:"can_approve"`
-	CanReject   bool `json:"can_reject"`
+	Level                   int  `json:"level"`
+	UserGroupID             uint `json:"user_group_id"`
+	ApproverID              uint `json:"approver_id"`
+	CanDraft                bool `json:"can_draft"`
+	CanSubmit               bool `json:"can_submit"`
+	CanApprove              bool `json:"can_approve"`
+	CanReject               bool `json:"can_reject"`
+	CanSetPaymentInProgress bool `json:"can_set_payment_in_progress"`
+	CanSetPaid              bool `json:"can_set_paid"`
 }
 
 func NewAdminHandler(db *gorm.DB) *AdminHandler {
@@ -196,11 +200,15 @@ func (h *AdminHandler) CreateApprovalLevel(w http.ResponseWriter, r *http.Reques
 	}
 
 	approvalLevel := models.ApprovalLevel{
-		Level:       req.Level,
-		UserGroupID: req.UserGroupID,
-		ApproverID:  req.ApproverID,
-		CanApprove:  req.CanApprove,
-		CanReject:   req.CanReject,
+		Level:                   req.Level,
+		UserGroupID:             req.UserGroupID,
+		ApproverID:              req.ApproverID,
+		CanDraft:                req.CanDraft,
+		CanSubmit:               req.CanSubmit,
+		CanApprove:              req.CanApprove,
+		CanReject:               req.CanReject,
+		CanSetPaymentInProgress: req.CanSetPaymentInProgress,
+		CanSetPaid:              req.CanSetPaid,
 	}
 
 	if err := h.DB.Create(&approvalLevel).Error; err != nil {
@@ -224,6 +232,48 @@ func (h *AdminHandler) GetApprovalLevels(w http.ResponseWriter, r *http.Request)
 	}
 
 	utils.WriteSuccess(w, approvalLevels)
+}
+
+func (h *AdminHandler) UpdateApprovalLevel(w http.ResponseWriter, r *http.Request) {
+	approvalLevelID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid approval level ID")
+		return
+	}
+
+	var approvalLevel models.ApprovalLevel
+	if err := h.DB.First(&approvalLevel, approvalLevelID).Error; err != nil {
+		utils.WriteError(w, http.StatusNotFound, "Approval level not found")
+		return
+	}
+
+	var req CreateApprovalLevelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	approvalLevel.Level = req.Level
+	approvalLevel.UserGroupID = req.UserGroupID
+	approvalLevel.ApproverID = req.ApproverID
+	approvalLevel.CanDraft = req.CanDraft
+	approvalLevel.CanSubmit = req.CanSubmit
+	approvalLevel.CanApprove = req.CanApprove
+	approvalLevel.CanReject = req.CanReject
+	approvalLevel.CanSetPaymentInProgress = req.CanSetPaymentInProgress
+	approvalLevel.CanSetPaid = req.CanSetPaid
+
+	if err := h.DB.Save(&approvalLevel).Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to update approval level")
+		return
+	}
+
+	if err := h.DB.Preload("UserGroup").Preload("Approver").First(&approvalLevel, approvalLevel.ID).Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to retrieve updated approval level")
+		return
+	}
+
+	utils.WriteSuccess(w, approvalLevel, "Approval level updated successfully")
 }
 
 func (h *AdminHandler) DeleteApprovalLevel(w http.ResponseWriter, r *http.Request) {

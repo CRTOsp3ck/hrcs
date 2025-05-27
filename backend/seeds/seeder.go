@@ -346,22 +346,30 @@ func (s *Seeder) SeedApprovalLevels() error {
 		// Level 1: Department Head (first admin user)
 		if len(adminUsers) > 1 {
 			approvalLevels = append(approvalLevels, models.ApprovalLevel{
-				Level:       1,
-				UserGroupID: group.ID,
-				ApproverID:  adminUsers[1].ID, // HR Manager
-				CanApprove:  true,
-				CanReject:   true,
+				Level:                   1,
+				UserGroupID:             group.ID,
+				ApproverID:              adminUsers[1].ID, // HR Manager
+				CanDraft:                false,
+				CanSubmit:               true,
+				CanApprove:              true,
+				CanReject:               true,
+				CanSetPaymentInProgress: false,
+				CanSetPaid:              false,
 			})
 		}
 
 		// Level 2: Finance Manager (second admin user)
 		if len(adminUsers) > 2 {
 			approvalLevels = append(approvalLevels, models.ApprovalLevel{
-				Level:       2,
-				UserGroupID: group.ID,
-				ApproverID:  adminUsers[2].ID, // Finance Manager
-				CanApprove:  true,
-				CanReject:   true,
+				Level:                   2,
+				UserGroupID:             group.ID,
+				ApproverID:              adminUsers[2].ID, // Finance Manager
+				CanDraft:                false,
+				CanSubmit:               false,
+				CanApprove:              true,
+				CanReject:               true,
+				CanSetPaymentInProgress: true,
+				CanSetPaid:              true,
 			})
 		}
 	}

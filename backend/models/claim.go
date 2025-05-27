@@ -49,8 +49,13 @@ type ApprovalLevel struct {
 	UserGroup   UserGroup      `json:"user_group"`
 	ApproverID  uint           `json:"approver_id" gorm:"not null"`
 	Approver    User           `json:"approver"`
-	CanApprove  bool           `json:"can_approve" gorm:"default:true"`
-	CanReject   bool           `json:"can_reject" gorm:"default:true"`
+	// Status permissions - what statuses this level can set
+	CanDraft             bool           `json:"can_draft" gorm:"default:false"`
+	CanSubmit            bool           `json:"can_submit" gorm:"default:false"`
+	CanApprove           bool           `json:"can_approve" gorm:"default:true"`
+	CanReject            bool           `json:"can_reject" gorm:"default:true"`
+	CanSetPaymentInProgress bool        `json:"can_set_payment_in_progress" gorm:"default:false"`
+	CanSetPaid           bool           `json:"can_set_paid" gorm:"default:false"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`

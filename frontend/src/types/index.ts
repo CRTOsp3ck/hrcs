@@ -1,10 +1,12 @@
 export interface User {
   id: number
   email: string
-  name: string
+  first_name: string
+  last_name: string
+  name?: string // Optional display name
   role: 'admin' | 'normal'
-  group_id?: number
-  group?: UserGroup
+  user_group_id?: number
+  user_group?: UserGroup
   created_at: string
   updated_at: string
 }
@@ -67,12 +69,18 @@ export interface Approval {
 
 export interface ApprovalLevel {
   id: number
-  group_id: number
-  group?: UserGroup
   level: number
-  name: string
-  approvers: User[]
-  permissions: ('approve' | 'reject')[]
+  user_group_id: number
+  user_group?: UserGroup
+  approver_id: number
+  approver?: User
+  // Status permissions
+  can_draft: boolean
+  can_submit: boolean
+  can_approve: boolean
+  can_reject: boolean
+  can_set_payment_in_progress: boolean
+  can_set_paid: boolean
   created_at: string
   updated_at: string
 }

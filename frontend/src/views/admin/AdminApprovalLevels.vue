@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">Approval Workflow</h1>
-      <p class="page-subtitle">Configure approval levels and workflow rules</p>
+      <h1 class="page-title">Approval Levels</h1>
+      <p class="page-subtitle">Configure approval levels and permissions for each user group</p>
     </div>
 
     <!-- Info Banner -->
@@ -10,7 +10,7 @@
       <template #default>
         <div class="info-content">
           <i class="pi pi-info-circle"></i>
-          <span>Approval levels determine the authorization hierarchy for different claim amounts and types. Higher amounts require more approvals.</span>
+          <span>Each user group can have multiple approval levels (1, 2, 3, etc.) with different status permissions.</span>
         </div>
       </template>
     </Message>
@@ -18,285 +18,200 @@
     <!-- Toolbar -->
     <div class="toolbar">
       <Button label="Add Approval Level" icon="pi pi-plus" @click="showAddDialog = true" />
+      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" @click="loadApprovalLevels" :loading="loading" />
     </div>
 
-    <!-- Approval Levels List -->
-    <div class="levels-container">
-      <draggable 
-        v-model="approvalLevels" 
-        item-key="id"
-        handle=".drag-handle"
-        @end="updateOrder"
-      >
-        <template #item="{ element, index }">
-          <Card class="level-card">
-            <template #content>
-              <div class="level-content">
-                <div class="drag-handle">
-                  <i class="pi pi-bars"></i>
-                </div>
-                
-                <div class="level-info">
-                  <div class="level-header">
-                    <h3 class="level-name">
-                      Level {{ index + 1 }}: {{ element.name }}
-                    </h3>
-                    <Tag :value="`Priority ${index + 1}`" severity="info" />
-                  </div>
-                  
-                  <div class="level-details">
-                    <div class="detail-row">
-                      <span class="detail-label">Amount Range:</span>
-                      <span class="detail-value">
-                        ${{ formatAmount(element.minAmount) }} - 
-                        {{ element.maxAmount ? `$${formatAmount(element.maxAmount)}` : 'No limit' }}
-                      </span>
-                    </div>
-                    
-                    <div class="detail-row">
-                      <span class="detail-label">Claim Types:</span>
-                      <span class="detail-value">
-                        <Tag 
-                          v-for="type in element.claimTypes" 
-                          :key="type"
-                          :value="type"
-                          severity="secondary"
-                          class="type-tag"
-                        />
-                        <span v-if="!element.claimTypes.length">All types</span>
-                      </span>
-                    </div>
-                    
-                    <div class="detail-row">
-                      <span class="detail-label">Approvers:</span>
-                      <span class="detail-value">
-                        <div class="approvers-list">
-                          <div v-for="approver in element.approvers" :key="approver.id" class="approver-item">
-                            <Avatar 
-                              v-if="approver.type === 'user'"
-                              :label="getInitials(approver.name)" 
-                              size="small"
-                            />
-                            <i v-else class="pi pi-users"></i>
-                            <span>{{ approver.name }}</span>
-                            <Tag :value="approver.type" severity="contrast" />
-                          </div>
-                        </div>
-                      </span>
-                    </div>
-                    
-                    <div class="detail-row">
-                      <span class="detail-label">Options:</span>
-                      <span class="detail-value">
-                        <div class="options-list">
-                          <Tag v-if="element.requiresAllApprovers" value="All must approve" severity="warning" />
-                          <Tag v-if="element.autoApprove" value="Auto-approve enabled" severity="success" />
-                          <Tag v-if="element.escalationDays" :value="`Escalates after ${element.escalationDays} days`" />
-                        </div>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="level-actions">
-                  <Button 
-                    icon="pi pi-pencil" 
-                    severity="secondary" 
-                    text 
-                    rounded 
-                    @click="editLevel(element)"
-                    v-tooltip="'Edit'"
-                  />
-                  <Button 
-                    icon="pi pi-trash" 
-                    severity="danger" 
-                    text 
-                    rounded 
-                    @click="confirmDelete(element)"
-                    v-tooltip="'Delete'"
-                  />
-                </div>
-              </div>
-            </template>
-          </Card>
+    <!-- Approval Levels Table -->
+    <DataTable 
+      :value="approvalLevels" 
+      :loading="loading"
+      stripedRows
+      showGridlines
+      class="approval-levels-table"
+    >
+      <template #empty>
+        <div class="empty-state">
+          <i class="pi pi-sitemap"></i>
+          <p>No approval levels configured</p>
+        </div>
+      </template>
+
+      <Column field="user_group.name" header="User Group" sortable>
+        <template #body="{ data }">
+          <Tag :value="data.user_group?.name || 'N/A'" severity="info" />
         </template>
-      </draggable>
-    </div>
+      </Column>
+
+      <Column field="level" header="Level" sortable>
+        <template #body="{ data }">
+          <Badge :value="`Level ${data.level}`" severity="success" />
+        </template>
+      </Column>
+
+      <Column field="approver.name" header="Approver">
+        <template #body="{ data }">
+          <div class="approver-info">
+            <Avatar 
+              :label="getInitials(data.approver)" 
+              size="small"
+              style="margin-right: 0.5rem"
+            />
+            {{ data.approver?.first_name }} {{ data.approver?.last_name }}
+          </div>
+        </template>
+      </Column>
+
+      <Column header="Status Permissions">
+        <template #body="{ data }">
+          <div class="permissions-grid">
+            <Tag v-if="data.can_draft" value="Draft" severity="secondary" />
+            <Tag v-if="data.can_submit" value="Submit" severity="info" />
+            <Tag v-if="data.can_approve" value="Approve" severity="success" />
+            <Tag v-if="data.can_reject" value="Reject" severity="danger" />
+            <Tag v-if="data.can_set_payment_in_progress" value="Payment in Progress" severity="warning" />
+            <Tag v-if="data.can_set_paid" value="Paid" severity="success" />
+          </div>
+        </template>
+      </Column>
+
+      <Column header="Actions" style="width: 150px">
+        <template #body="{ data }">
+          <div class="action-buttons">
+            <Button 
+              icon="pi pi-pencil" 
+              severity="secondary" 
+              text 
+              @click="editLevel(data)"
+              v-tooltip.top="'Edit'"
+            />
+            <Button 
+              icon="pi pi-trash" 
+              severity="danger" 
+              text 
+              @click="confirmDelete(data)"
+              v-tooltip.top="'Delete'"
+            />
+          </div>
+        </template>
+      </Column>
+    </DataTable>
 
     <!-- Add/Edit Dialog -->
     <Dialog 
       v-model:visible="showAddDialog" 
       :header="editingItem ? 'Edit Approval Level' : 'Add Approval Level'"
-      :style="{ width: '700px' }"
+      :style="{ width: '600px' }"
       modal
     >
-      <div class="dialog-content">
+      <div class="form-container">
         <div class="field">
-          <label for="name">Level Name</label>
-          <InputText id="name" v-model="form.name" class="w-full" />
-        </div>
-        
-        <div class="field">
-          <label for="description">Description</label>
-          <Textarea 
-            id="description" 
-            v-model="form.description" 
-            rows="3"
-            class="w-full" 
-          />
-        </div>
-        
-        <div class="form-row">
-          <div class="field">
-            <label for="minAmount">Minimum Amount</label>
-            <InputNumber 
-              id="minAmount" 
-              v-model="form.minAmount" 
-              mode="currency" 
-              currency="USD"
-              :min="0"
-              class="w-full" 
-            />
-          </div>
-          
-          <div class="field">
-            <label for="maxAmount">Maximum Amount</label>
-            <InputNumber 
-              id="maxAmount" 
-              v-model="form.maxAmount" 
-              mode="currency" 
-              currency="USD"
-              :min="0"
-              placeholder="No limit"
-              class="w-full" 
-            />
-          </div>
-        </div>
-        
-        <div class="field">
-          <label for="claimTypes">Applicable Claim Types</label>
-          <MultiSelect 
-            id="claimTypes"
-            v-model="form.claimTypes" 
-            :options="availableClaimTypes" 
+          <label for="userGroup">User Group *</label>
+          <Dropdown
+            id="userGroup"
+            v-model="form.user_group_id"
+            :options="availableGroups"
             optionLabel="name"
-            optionValue="code"
-            placeholder="All types"
+            optionValue="id"
+            placeholder="Select a user group"
             class="w-full"
-            display="chip"
+            :disabled="editingItem"
           />
         </div>
-        
+
         <div class="field">
-          <label>Approvers</label>
-          <div class="approvers-section">
-            <div class="approvers-grid">
-              <div v-for="(approver, index) in form.approvers" :key="index" class="approver-row">
-                <Dropdown 
-                  v-model="approver.type" 
-                  :options="approverTypes" 
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Type"
-                  class="approver-type"
-                />
-                
-                <Dropdown 
-                  v-if="approver.type === 'user'"
-                  v-model="approver.id" 
-                  :options="availableUsers" 
-                  optionLabel="name"
-                  optionValue="id"
-                  placeholder="Select user"
-                  class="approver-select"
-                  filter
-                />
-                
-                <Dropdown 
-                  v-else-if="approver.type === 'group'"
-                  v-model="approver.id" 
-                  :options="availableGroups" 
-                  optionLabel="name"
-                  optionValue="id"
-                  placeholder="Select group"
-                  class="approver-select"
-                  filter
-                />
-                
-                <InputText 
-                  v-else
-                  v-model="approver.value" 
-                  placeholder="e.g., Department Manager"
-                  class="approver-select"
-                />
-                
-                <Button 
-                  icon="pi pi-trash" 
-                  severity="danger" 
-                  text 
-                  rounded
-                  @click="removeApprover(index)"
-                />
+          <label for="level">Level *</label>
+          <InputNumber
+            id="level"
+            v-model="form.level"
+            :min="1"
+            :max="10"
+            placeholder="Enter level (1, 2, 3...)"
+            class="w-full"
+            :disabled="editingItem"
+          />
+        </div>
+
+        <div class="field">
+          <label for="approver">Approver *</label>
+          <Dropdown
+            id="approver"
+            v-model="form.approver_id"
+            :options="availableUsers"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select an approver"
+            class="w-full"
+            filter
+          >
+            <template #option="{ option }">
+              <div class="approver-option">
+                <Avatar :label="getInitials(option)" size="small" style="margin-right: 0.5rem" />
+                {{ option.name }}
               </div>
-            </div>
-            <Button 
-              label="Add Approver" 
-              icon="pi pi-plus" 
-              severity="secondary"
-              size="small"
-              @click="addApprover"
-            />
-          </div>
+            </template>
+          </Dropdown>
         </div>
-        
+
+        <Divider />
+
         <div class="field">
-          <label>Approval Options</label>
-          <div class="options-grid">
-            <div class="option-item">
-              <Checkbox v-model="form.requiresAllApprovers" inputId="requiresAll" binary />
-              <label for="requiresAll">All approvers must approve</label>
+          <label>Status Permissions</label>
+          <div class="permissions-checkboxes">
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="form.can_draft" 
+                inputId="canDraft" 
+                binary 
+              />
+              <label for="canDraft">Can set to Draft</label>
             </div>
-            <div class="option-item">
-              <Checkbox v-model="form.autoApprove" inputId="autoApprove" binary />
-              <label for="autoApprove">Auto-approve if within budget</label>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="form.can_submit" 
+                inputId="canSubmit" 
+                binary 
+              />
+              <label for="canSubmit">Can Submit claims</label>
             </div>
-            <div class="option-item">
-              <Checkbox v-model="form.notifyApprovers" inputId="notifyApprovers" binary />
-              <label for="notifyApprovers">Send notifications to approvers</label>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="form.can_approve" 
+                inputId="canApprove" 
+                binary 
+              />
+              <label for="canApprove">Can Approve claims</label>
             </div>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="field">
-            <label for="escalationDays">Escalation After (days)</label>
-            <InputNumber 
-              id="escalationDays" 
-              v-model="form.escalationDays" 
-              :min="0"
-              suffix=" days"
-              placeholder="No escalation"
-              class="w-full" 
-            />
-          </div>
-          
-          <div class="field">
-            <label for="reminderDays">Send Reminder After (days)</label>
-            <InputNumber 
-              id="reminderDays" 
-              v-model="form.reminderDays" 
-              :min="0"
-              suffix=" days"
-              placeholder="No reminders"
-              class="w-full" 
-            />
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="form.can_reject" 
+                inputId="canReject" 
+                binary 
+              />
+              <label for="canReject">Can Reject claims</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="form.can_set_payment_in_progress" 
+                inputId="canSetPaymentInProgress" 
+                binary 
+              />
+              <label for="canSetPaymentInProgress">Can set Payment in Progress</label>
+            </div>
+            <div class="checkbox-item">
+              <Checkbox 
+                v-model="form.can_set_paid" 
+                inputId="canSetPaid" 
+                binary 
+              />
+              <label for="canSetPaid">Can mark as Paid</label>
+            </div>
           </div>
         </div>
       </div>
       
       <template #footer>
-        <Button label="Cancel" severity="secondary" @click="closeDialog" />
-        <Button label="Save" @click="save" />
+        <Button label="Cancel" severity="secondary" @click="showAddDialog = false" />
+        <Button label="Save" @click="saveItem" :loading="saving" />
       </template>
     </Dialog>
 
@@ -309,8 +224,8 @@
     >
       <div class="confirmation-content">
         <i class="pi pi-exclamation-triangle" style="font-size: 2rem; color: var(--red-500)"></i>
-        <p>Are you sure you want to delete approval level <strong>{{ itemToDelete?.name }}</strong>?</p>
-        <p class="text-secondary">This may affect existing claims in the approval process.</p>
+        <p>Are you sure you want to delete this approval level?</p>
+        <p class="text-secondary">This action cannot be undone.</p>
       </div>
       
       <template #footer>
@@ -324,62 +239,45 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { adminApi } from '@/api'
-import draggable from 'vuedraggable'
+import { approvalLevelsApi, userGroupsApi, usersApi } from '@/api'
+import type { ApprovalLevel, UserGroup, User } from '@/types'
 
 const toast = useToast()
 
 const loading = ref(false)
-const approvalLevels = ref([])
-const availableUsers = ref([])
-const availableGroups = ref([])
-const availableClaimTypes = ref([])
+const saving = ref(false)
+const approvalLevels = ref<ApprovalLevel[]>([])
+const availableUsers = ref<User[]>([])
+const availableGroups = ref<UserGroup[]>([])
 const showAddDialog = ref(false)
 const showDeleteDialog = ref(false)
-const editingItem = ref(null)
-const itemToDelete = ref(null)
+const editingItem = ref<ApprovalLevel | null>(null)
+const itemToDelete = ref<ApprovalLevel | null>(null)
 
 const form = ref({
-  name: '',
-  description: '',
-  minAmount: 0,
-  maxAmount: null,
-  claimTypes: [],
-  approvers: [{ type: 'user', id: null, value: '' }],
-  requiresAllApprovers: false,
-  autoApprove: false,
-  notifyApprovers: true,
-  escalationDays: null,
-  reminderDays: null
+  user_group_id: null as number | null,
+  level: 1,
+  approver_id: null as number | null,
+  can_draft: false,
+  can_submit: false,
+  can_approve: true,
+  can_reject: true,
+  can_set_payment_in_progress: false,
+  can_set_paid: false
 })
 
-const approverTypes = ref([
-  { label: 'Specific User', value: 'user' },
-  { label: 'User Group', value: 'group' },
-  { label: 'Role', value: 'role' }
-])
-
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-const formatAmount = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
+const getInitials = (user: any) => {
+  if (!user) return '?'
+  const firstName = user.first_name || user.firstName || ''
+  const lastName = user.last_name || user.lastName || ''
+  return (firstName[0] || '') + (lastName[0] || '')
 }
 
 const loadApprovalLevels = async () => {
   loading.value = true
   try {
-    const response = await adminApi.getApprovalLevels()
-    approvalLevels.value = response.data.data
+    const response = await approvalLevelsApi.getAll()
+    approvalLevels.value = response.data.data || []
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -394,85 +292,102 @@ const loadApprovalLevels = async () => {
 
 const loadResources = async () => {
   try {
-    const [usersRes, groupsRes, claimTypesRes] = await Promise.all([
-      adminApi.getUsers(),
-      adminApi.getGroups(),
-      adminApi.getClaimTypes()
+    const [usersRes, groupsRes] = await Promise.all([
+      usersApi.getAll(),
+      userGroupsApi.getAll()
     ])
-    availableUsers.value = usersRes.data.data
-    availableGroups.value = groupsRes.data.data
-    availableClaimTypes.value = claimTypesRes.data.data
+    
+    // Format users for display
+    availableUsers.value = (usersRes.data.data || []).map(user => ({
+      ...user,
+      name: `${user.first_name || ''} ${user.last_name || ''}`
+    }))
+    
+    availableGroups.value = groupsRes.data.data || []
   } catch (error) {
     console.error('Failed to load resources:', error)
   }
 }
 
-const updateOrder = async () => {
-  try {
-    const orders = approvalLevels.value.map((level, index) => ({
-      id: level.id,
-      order: index + 1
-    }))
-    await adminApi.updateApprovalLevelOrder(orders)
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Approval level order updated',
-      life: 3000
-    })
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to update order',
-      life: 3000
-    })
-    loadApprovalLevels()
-  }
-}
-
-const addApprover = () => {
-  form.value.approvers.push({ type: 'user', id: null, value: '' })
-}
-
-const removeApprover = (index: number) => {
-  form.value.approvers.splice(index, 1)
-}
-
-const editLevel = (level: any) => {
+const editLevel = (level: ApprovalLevel) => {
   editingItem.value = level
   form.value = {
-    name: level.name,
-    description: level.description,
-    minAmount: level.minAmount,
-    maxAmount: level.maxAmount,
-    claimTypes: level.claimTypes,
-    approvers: level.approvers.map((a: any) => ({ ...a })),
-    requiresAllApprovers: level.requiresAllApprovers,
-    autoApprove: level.autoApprove,
-    notifyApprovers: level.notifyApprovers,
-    escalationDays: level.escalationDays,
-    reminderDays: level.reminderDays
+    user_group_id: level.user_group_id,
+    level: level.level,
+    approver_id: level.approver_id,
+    can_draft: level.can_draft,
+    can_submit: level.can_submit,
+    can_approve: level.can_approve,
+    can_reject: level.can_reject,
+    can_set_payment_in_progress: level.can_set_payment_in_progress,
+    can_set_paid: level.can_set_paid
   }
   showAddDialog.value = true
 }
 
-const confirmDelete = (level: any) => {
+const confirmDelete = (level: ApprovalLevel) => {
   itemToDelete.value = level
   showDeleteDialog.value = true
 }
 
-const deleteItem = async () => {
+const saveItem = async () => {
+  if (!form.value.user_group_id || !form.value.approver_id) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Validation Error',
+      detail: 'Please fill all required fields',
+      life: 3000
+    })
+    return
+  }
+
+  saving.value = true
   try {
-    await adminApi.deleteApprovalLevel(itemToDelete.value.id)
+    if (editingItem.value) {
+      await approvalLevelsApi.update(editingItem.value.id, form.value)
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Approval level updated successfully',
+        life: 3000
+      })
+    } else {
+      await approvalLevelsApi.create(form.value)
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Approval level created successfully',
+        life: 3000
+      })
+    }
+    showAddDialog.value = false
+    loadApprovalLevels()
+    resetForm()
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to save approval level',
+      life: 3000
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+const deleteItem = async () => {
+  if (!itemToDelete.value) return
+
+  try {
+    await approvalLevelsApi.delete(itemToDelete.value.id)
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: 'Approval level deleted successfully',
       life: 3000
     })
-    loadApprovalLevels()
     showDeleteDialog.value = false
+    loadApprovalLevels()
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -483,63 +398,18 @@ const deleteItem = async () => {
   }
 }
 
-const save = async () => {
-  try {
-    const validApprovers = form.value.approvers.filter(a => 
-      (a.type === 'user' && a.id) || 
-      (a.type === 'group' && a.id) || 
-      (a.type === 'role' && a.value)
-    )
-    
-    const data = {
-      ...form.value,
-      approvers: validApprovers
-    }
-    
-    if (editingItem.value) {
-      await adminApi.updateApprovalLevel(editingItem.value.id, data)
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Approval level updated successfully',
-        life: 3000
-      })
-    } else {
-      await adminApi.createApprovalLevel(data)
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Approval level created successfully',
-        life: 3000
-      })
-    }
-    loadApprovalLevels()
-    closeDialog()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to save approval level',
-      life: 3000
-    })
-  }
-}
-
-const closeDialog = () => {
-  showAddDialog.value = false
+const resetForm = () => {
   editingItem.value = null
   form.value = {
-    name: '',
-    description: '',
-    minAmount: 0,
-    maxAmount: null,
-    claimTypes: [],
-    approvers: [{ type: 'user', id: null, value: '' }],
-    requiresAllApprovers: false,
-    autoApprove: false,
-    notifyApprovers: true,
-    escalationDays: null,
-    reminderDays: null
+    user_group_id: null,
+    level: 1,
+    approver_id: null,
+    can_draft: false,
+    can_submit: false,
+    can_approve: true,
+    can_reject: true,
+    can_set_payment_in_progress: false,
+    can_set_paid: false
   }
 }
 
@@ -550,6 +420,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.page-container {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+  color: var(--text-color-secondary);
+  margin: 0;
+}
+
 .info-banner {
   margin-bottom: 1.5rem;
 }
@@ -557,116 +448,54 @@ onMounted(() => {
 .info-content {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .toolbar {
   display: flex;
-  justify-content: flex-end;
+  gap: 0.5rem;
   margin-bottom: 1.5rem;
 }
 
-.levels-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.approval-levels-table {
+  background: var(--surface-card);
+  border-radius: var(--border-radius);
+  overflow: hidden;
 }
 
-.level-card {
-  cursor: move;
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-color-secondary);
 }
 
-.level-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.drag-handle {
-  padding: 0.5rem;
-  cursor: grab;
-  color: var(--surface-500);
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-}
-
-.level-info {
-  flex: 1;
-}
-
-.level-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.empty-state i {
+  font-size: 3rem;
   margin-bottom: 1rem;
+  display: block;
+  opacity: 0.3;
 }
 
-.level-name {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.level-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.detail-row {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.detail-label {
-  color: var(--surface-600);
-  font-weight: 500;
-  min-width: 120px;
-}
-
-.detail-value {
-  flex: 1;
-}
-
-.type-tag {
-  margin-right: 0.25rem;
-}
-
-.approvers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.approver-item {
+.approver-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
 }
 
-.options-list {
+.permissions-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
-.level-actions {
+.action-buttons {
   display: flex;
   gap: 0.25rem;
 }
 
-.dialog-content {
+.form-container {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
 }
 
 .field {
@@ -676,46 +505,32 @@ onMounted(() => {
 }
 
 .field label {
-  font-weight: 600;
-  color: var(--surface-700);
+  font-weight: 500;
+  color: var(--text-color);
 }
 
-.approvers-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.approvers-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.approver-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.approver-type {
-  width: 150px;
-}
-
-.approver-select {
-  flex: 1;
-}
-
-.options-grid {
+.permissions-checkboxes {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
-.option-item {
+.checkbox-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.checkbox-item label {
+  font-weight: normal;
+  margin: 0;
+  cursor: pointer;
+}
+
+.approver-option {
+  display: flex;
+  align-items: center;
 }
 
 .confirmation-content {
@@ -724,30 +539,15 @@ onMounted(() => {
   align-items: center;
   gap: 1rem;
   text-align: center;
-  padding: 1rem 0;
+  padding: 1rem;
 }
 
 .text-secondary {
-  color: var(--surface-600);
+  color: var(--text-color-secondary);
   font-size: 0.875rem;
 }
 
-@media (max-width: 768px) {
-  .level-content {
-    flex-direction: column;
-  }
-  
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .approver-row {
-    flex-wrap: wrap;
-  }
-  
-  .approver-type,
-  .approver-select {
-    width: 100%;
-  }
+.w-full {
+  width: 100%;
 }
 </style>
