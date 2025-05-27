@@ -1,220 +1,222 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h1 class="page-title">Welcome back, {{ authStore.user?.name }}!</h1>
-      <p class="page-subtitle">Here's an overview of your claims activity</p>
-    </div>
+  <div>
+    <div class="page-container">
+      <div class="page-header">
+        <h1 class="page-title">Welcome back, {{ authStore.user?.name }}!</h1>
+        <p class="page-subtitle">Here's an overview of your claims activity</p>
+      </div>
 
-    <div class="dashboard-grid">
-      <!-- Stats Cards -->
-      <Card class="stat-card">
-        <template #content>
-          <div class="stat-content">
-            <div class="stat-icon-container" style="background: rgba(59, 130, 246, 0.1);">
-              <i class="pi pi-file stat-icon" style="color: var(--primary-500);"></i>
-            </div>
-            <div class="stat-details">
-              <p class="stat-label">Total Claims</p>
-              <p class="stat-value">{{ stats.totalClaims }}</p>
-            </div>
-          </div>
-        </template>
-      </Card>
-
-      <Card class="stat-card">
-        <template #content>
-          <div class="stat-content">
-            <div class="stat-icon-container" style="background: rgba(251, 191, 36, 0.1);">
-              <i class="pi pi-clock stat-icon" style="color: #fbbf24;"></i>
-            </div>
-            <div class="stat-details">
-              <p class="stat-label">Pending Claims</p>
-              <p class="stat-value">{{ stats.pendingClaims }}</p>
-            </div>
-          </div>
-        </template>
-      </Card>
-
-      <Card class="stat-card">
-        <template #content>
-          <div class="stat-content">
-            <div class="stat-icon-container" style="background: rgba(16, 185, 129, 0.1);">
-              <i class="pi pi-check-circle stat-icon" style="color: #10b981;"></i>
-            </div>
-            <div class="stat-details">
-              <p class="stat-label">Approved Claims</p>
-              <p class="stat-value">{{ stats.approvedClaims }}</p>
-            </div>
-          </div>
-        </template>
-      </Card>
-
-      <Card class="stat-card">
-        <template #content>
-          <div class="stat-content">
-            <div class="stat-icon-container" style="background: rgba(99, 102, 241, 0.1);">
-              <i class="pi pi-dollar stat-icon" style="color: #6366f1;"></i>
-            </div>
-            <div class="stat-details">
-              <p class="stat-label">Total Amount</p>
-              <p class="stat-value">${{ formatAmount(stats.totalAmount) }}</p>
-            </div>
-          </div>
-        </template>
-      </Card>
-    </div>
-
-    <div class="dashboard-content">
-      <!-- Recent Claims -->
-      <Card class="recent-claims-card">
-        <template #header>
-          <div class="card-header">
-            <h2 class="card-title">Recent Claims</h2>
-            <Button 
-              label="View All" 
-              icon="pi pi-arrow-right" 
-              text 
-              @click="router.push('/claims')"
-            />
-          </div>
-        </template>
-        <template #content>
-          <DataTable 
-            :value="stats.recentClaims" 
-            :loading="loading"
-            responsiveLayout="scroll"
-            :paginator="false"
-            class="p-datatable-sm"
-          >
-            <template #empty>
-              <div class="empty-state">
-                <i class="pi pi-inbox empty-icon"></i>
-                <p>No claims found</p>
-                <Button 
-                  label="Create Your First Claim" 
-                  icon="pi pi-plus" 
-                  @click="router.push('/claims/new')"
-                />
+      <div class="dashboard-grid">
+        <!-- Stats Cards -->
+        <Card class="stat-card">
+          <template #content>
+            <div class="stat-content">
+              <div class="stat-icon-container" style="background: rgba(59, 130, 246, 0.1);">
+                <i class="pi pi-file stat-icon" style="color: var(--primary-500);"></i>
               </div>
-            </template>
-            
-            <Column field="title" header="Title" :sortable="true">
-              <template #body="slotProps">
-                <router-link :to="`/claims/${slotProps.data.id}`" class="claim-link">
-                  {{ slotProps.data.title }}
-                </router-link>
-              </template>
-            </Column>
-            
-            <Column field="claim_type.name" header="Type" :sortable="true">
-              <template #body="slotProps">
-                <Tag :value="slotProps.data.claim_type?.name" severity="info" />
-              </template>
-            </Column>
-            
-            <Column field="amount" header="Amount" :sortable="true">
-              <template #body="slotProps">
-                <span class="font-semibold">${{ formatAmount(slotProps.data.amount) }}</span>
-              </template>
-            </Column>
-            
-            <Column field="status" header="Status" :sortable="true">
-              <template #body="slotProps">
-                <span :class="`status-badge status-${slotProps.data.status}`">
-                  <i :class="getStatusIcon(slotProps.data.status)"></i>
-                  {{ formatStatus(slotProps.data.status) }}
-                </span>
-              </template>
-            </Column>
-            
-            <Column field="created_at" header="Date" :sortable="true">
-              <template #body="slotProps">
-                {{ formatDate(slotProps.data.created_at) }}
-              </template>
-            </Column>
-            
-            <Column header="Actions" :exportable="false" style="width: 100px">
-              <template #body="slotProps">
-                <Button 
-                  icon="pi pi-eye" 
-                  text 
-                  rounded 
-                  @click="router.push(`/claims/${slotProps.data.id}`)"
-                />
-              </template>
-            </Column>
-          </DataTable>
-        </template>
-      </Card>
+              <div class="stat-details">
+                <p class="stat-label">Total Claims</p>
+                <p class="stat-value">{{ stats.totalClaims }}</p>
+              </div>
+            </div>
+          </template>
+        </Card>
 
-      <!-- Quick Actions -->
-      <Card class="quick-actions-card">
-        <template #header>
-          <h2 class="card-title">Quick Actions</h2>
-        </template>
-        <template #content>
-          <div class="quick-actions-grid">
-            <Button 
-              label="New Claim" 
-              icon="pi pi-plus" 
-              class="p-button-lg"
-              @click="router.push('/claims/new')"
-            />
-            <Button 
-              label="View All Claims" 
-              icon="pi pi-list" 
-              severity="secondary"
-              class="p-button-lg"
-              @click="router.push('/claims')"
-            />
-            <Button 
-              label="Profile Settings" 
-              icon="pi pi-user" 
-              severity="help"
-              class="p-button-lg"
-              @click="showProfileDialog = true"
-            />
-          </div>
+        <Card class="stat-card">
+          <template #content>
+            <div class="stat-content">
+              <div class="stat-icon-container" style="background: rgba(251, 191, 36, 0.1);">
+                <i class="pi pi-clock stat-icon" style="color: #fbbf24;"></i>
+              </div>
+              <div class="stat-details">
+                <p class="stat-label">Pending Claims</p>
+                <p class="stat-value">{{ stats.pendingClaims }}</p>
+              </div>
+            </div>
+          </template>
+        </Card>
 
-          <Panel header="Claim Guidelines" :toggleable="true" class="mt-4">
-            <ul class="guidelines-list">
-              <li>Submit claims within 30 days of expense</li>
-              <li>Attach all required receipts and documentation</li>
-              <li>Ensure claim amounts are accurate</li>
-              <li>Select the appropriate claim type</li>
-              <li>Provide clear descriptions for faster approval</li>
-            </ul>
-          </Panel>
-        </template>
-      </Card>
+        <Card class="stat-card">
+          <template #content>
+            <div class="stat-content">
+              <div class="stat-icon-container" style="background: rgba(16, 185, 129, 0.1);">
+                <i class="pi pi-check-circle stat-icon" style="color: #10b981;"></i>
+              </div>
+              <div class="stat-details">
+                <p class="stat-label">Approved Claims</p>
+                <p class="stat-value">{{ stats.approvedClaims }}</p>
+              </div>
+            </div>
+          </template>
+        </Card>
+
+        <Card class="stat-card">
+          <template #content>
+            <div class="stat-content">
+              <div class="stat-icon-container" style="background: rgba(99, 102, 241, 0.1);">
+                <i class="pi pi-dollar stat-icon" style="color: #6366f1;"></i>
+              </div>
+              <div class="stat-details">
+                <p class="stat-label">Total Amount</p>
+                <p class="stat-value">${{ formatAmount(stats.totalAmount) }}</p>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div class="dashboard-content">
+        <!-- Recent Claims -->
+        <Card class="recent-claims-card">
+          <template #header>
+            <div class="card-header">
+              <h2 class="card-title">Recent Claims</h2>
+              <Button
+                label="View All"
+                icon="pi pi-arrow-right"
+                text
+                @click="router.push('/claims')"
+              />
+            </div>
+          </template>
+          <template #content>
+            <DataTable
+              :value="stats.recentClaims"
+              :loading="loading"
+              responsiveLayout="scroll"
+              :paginator="false"
+              class="p-datatable-sm"
+            >
+              <template #empty>
+                <div class="empty-state">
+                  <i class="pi pi-inbox empty-icon"></i>
+                  <p>No claims found</p>
+                  <Button
+                    label="Create Your First Claim"
+                    icon="pi pi-plus"
+                    @click="router.push('/claims/new')"
+                  />
+                </div>
+              </template>
+
+              <Column field="title" header="Title" :sortable="true">
+                <template #body="slotProps">
+                  <router-link :to="`/claims/${slotProps.data.id}`" class="claim-link">
+                    {{ slotProps.data.title }}
+                  </router-link>
+                </template>
+              </Column>
+
+              <Column field="claim_type.name" header="Type" :sortable="true">
+                <template #body="slotProps">
+                  <Tag :value="slotProps.data.claim_type?.name" severity="info" />
+                </template>
+              </Column>
+
+              <Column field="amount" header="Amount" :sortable="true">
+                <template #body="slotProps">
+                  <span class="font-semibold">${{ formatAmount(slotProps.data.amount) }}</span>
+                </template>
+              </Column>
+
+              <Column field="status" header="Status" :sortable="true">
+                <template #body="slotProps">
+                  <span :class="`status-badge status-${slotProps.data.status}`">
+                    <i :class="getStatusIcon(slotProps.data.status)"></i>
+                    {{ formatStatus(slotProps.data.status) }}
+                  </span>
+                </template>
+              </Column>
+
+              <Column field="created_at" header="Date" :sortable="true">
+                <template #body="slotProps">
+                  {{ formatDate(slotProps.data.created_at) }}
+                </template>
+              </Column>
+
+              <Column header="Actions" :exportable="false" style="width: 100px">
+                <template #body="slotProps">
+                  <Button
+                    icon="pi pi-eye"
+                    text
+                    rounded
+                    @click="router.push(`/claims/${slotProps.data.id}`)"
+                  />
+                </template>
+              </Column>
+            </DataTable>
+          </template>
+        </Card>
+
+        <!-- Quick Actions -->
+        <Card class="quick-actions-card">
+          <template #header>
+            <h2 class="card-title">Quick Actions</h2>
+          </template>
+          <template #content>
+            <div class="quick-actions-grid">
+              <Button
+                label="New Claim"
+                icon="pi pi-plus"
+                class="p-button-lg"
+                @click="router.push('/claims/new')"
+              />
+              <Button
+                label="View All Claims"
+                icon="pi pi-list"
+                severity="secondary"
+                class="p-button-lg"
+                @click="router.push('/claims')"
+              />
+              <Button
+                label="Profile Settings"
+                icon="pi pi-user"
+                severity="help"
+                class="p-button-lg"
+                @click="showProfileDialog = true"
+              />
+            </div>
+
+            <Panel header="Claim Guidelines" :toggleable="true" class="mt-4">
+              <ul class="guidelines-list">
+                <li>Submit claims within 30 days of expense</li>
+                <li>Attach all required receipts and documentation</li>
+                <li>Ensure claim amounts are accurate</li>
+                <li>Select the appropriate claim type</li>
+                <li>Provide clear descriptions for faster approval</li>
+              </ul>
+            </Panel>
+          </template>
+        </Card>
+      </div>
     </div>
+
+    <!-- Profile Dialog -->
+    <Dialog
+      v-model:visible="showProfileDialog"
+      modal
+      header="Profile Settings"
+      :style="{ width: '450px' }"
+    >
+      <div class="profile-content">
+        <div class="profile-avatar">
+          <Avatar
+            :label="userInitials"
+            :style="{ backgroundColor: '#2563eb', color: '#ffffff' }"
+            size="xlarge"
+            shape="circle"
+          />
+        </div>
+        <div class="profile-info">
+          <p><strong>Name:</strong> {{ authStore.user?.name }}</p>
+          <p><strong>Email:</strong> {{ authStore.user?.email }}</p>
+          <p><strong>Role:</strong> <Tag :value="authStore.user?.role" :severity="authStore.isAdmin ? 'success' : 'info'" /></p>
+          <p v-if="authStore.user?.group"><strong>Group:</strong> {{ authStore.user.group.name }}</p>
+          <p><strong>Member Since:</strong> {{ formatDate(authStore.user?.created_at) }}</p>
+        </div>
+      </div>
+    </Dialog>
   </div>
-
-  <!-- Profile Dialog -->
-  <Dialog 
-    v-model:visible="showProfileDialog" 
-    modal 
-    header="Profile Settings" 
-    :style="{ width: '450px' }"
-  >
-    <div class="profile-content">
-      <div class="profile-avatar">
-        <Avatar 
-          :label="userInitials" 
-          :style="{ backgroundColor: '#2563eb', color: '#ffffff' }"
-          size="xlarge"
-          shape="circle" 
-        />
-      </div>
-      <div class="profile-info">
-        <p><strong>Name:</strong> {{ authStore.user?.name }}</p>
-        <p><strong>Email:</strong> {{ authStore.user?.email }}</p>
-        <p><strong>Role:</strong> <Tag :value="authStore.user?.role" :severity="authStore.isAdmin ? 'success' : 'info'" /></p>
-        <p v-if="authStore.user?.group"><strong>Group:</strong> {{ authStore.user.group.name }}</p>
-        <p><strong>Member Since:</strong> {{ formatDate(authStore.user?.created_at) }}</p>
-      </div>
-    </div>
-  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -265,7 +267,7 @@ const formatDate = (date: string | undefined) => {
 }
 
 const formatStatus = (status: string) => {
-  return status.split('-').map(word => 
+  return status.split('-').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ')
 }

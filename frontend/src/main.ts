@@ -48,6 +48,8 @@ import Badge from 'primevue/badge'
 import Chart from 'primevue/chart'
 import ColorPicker from 'primevue/colorpicker'
 import InputSwitch from 'primevue/inputswitch'
+import ProgressBar from 'primevue/progressbar'
+import Calendar from 'primevue/calendar'
 
 const app = createApp(App)
 
@@ -127,5 +129,7 @@ app.component('Badge', Badge)
 app.component('Chart', Chart)
 app.component('ColorPicker', ColorPicker)
 app.component('InputSwitch', InputSwitch)
+app.component('ProgressBar', ProgressBar)
+app.component('Calendar', Calendar)
 
 app.mount('#app')
