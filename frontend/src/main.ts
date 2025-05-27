@@ -35,6 +35,7 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
+import Tooltip from 'primevue/tooltip'
 import Chip from 'primevue/chip'
 import Timeline from 'primevue/timeline'
 import MultiSelect from 'primevue/multiselect'
@@ -105,6 +106,7 @@ app.component('TabList', TabList)
 app.component('Tab', Tab)
 app.component('TabPanels', TabPanels)
 app.component('TabPanel', TabPanel)
+app.directive('Tooltip', Tooltip)
 app.component('Chip', Chip)
 app.component('Timeline', Timeline)
 app.component('MultiSelect', MultiSelect)

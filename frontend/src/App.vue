@@ -30,10 +30,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.main-content {
+/* .main-content {
   padding: 6rem 0rem;
   min-height: 100vh;
-}
+} */
 
 .fade-enter-active,
 .fade-leave-active {
