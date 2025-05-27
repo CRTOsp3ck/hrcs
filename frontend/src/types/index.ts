@@ -54,6 +54,33 @@ export interface Claim {
   submittedDate?: string
   canApprove?: boolean
   allowedStatuses?: string[]
+  approvalWorkflow?: ApprovalStep[]
+  currentStep?: ApprovalStep
+  nextSteps?: ApprovalStep[]
+}
+
+export interface ApprovalStep {
+  id: number
+  level: number
+  name: string
+  approverId: number
+  approverName: string
+  approverEmail: string
+  userGroupId: number
+  userGroupName: string
+  status: 'pending' | 'approved' | 'rejected' | 'skipped'
+  completedAt?: string
+  comments: string
+  permissions: ApprovalPermissions
+}
+
+export interface ApprovalPermissions {
+  canDraft: boolean
+  canSubmit: boolean
+  canApprove: boolean
+  canReject: boolean
+  canSetPaymentInProgress: boolean
+  canSetPaid: boolean
 }
 
 export type ClaimStatus = 

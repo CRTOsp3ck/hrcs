@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,30 @@ import (
 
 type AdminEnhancedHandler struct {
 	DB *gorm.DB
+}
+
+type ApprovalStep struct {
+	ID            uint                `json:"id"`
+	Level         int                 `json:"level"`
+	Name          string              `json:"name"`
+	ApproverID    uint                `json:"approverId"`
+	ApproverName  string              `json:"approverName"`
+	ApproverEmail string              `json:"approverEmail"`
+	UserGroupID   uint                `json:"userGroupId"`
+	UserGroupName string              `json:"userGroupName"`
+	Status        string              `json:"status"` // "pending", "approved", "rejected", "skipped"
+	CompletedAt   *string             `json:"completedAt"`
+	Comments      string              `json:"comments"`
+	Permissions   ApprovalPermissions `json:"permissions"`
+}
+
+type ApprovalPermissions struct {
+	CanDraft                bool `json:"canDraft"`
+	CanSubmit               bool `json:"canSubmit"`
+	CanApprove              bool `json:"canApprove"`
+	CanReject               bool `json:"canReject"`
+	CanSetPaymentInProgress bool `json:"canSetPaymentInProgress"`
+	CanSetPaid              bool `json:"canSetPaid"`
 }
 
 func NewAdminEnhancedHandler(db *gorm.DB) *AdminEnhancedHandler {
@@ -48,30 +73,85 @@ func (h *AdminEnhancedHandler) GetAllClaims(w http.ResponseWriter, r *http.Reque
 	// Enhanced claim response with additional fields
 	type EnhancedClaim struct {
 		models.Claim
-		Employee          string   `json:"employee"`
-		Department        string   `json:"department"`
-		Type              string   `json:"type"`
-		ApprovalsReceived int      `json:"approvalsReceived"`
-		ApprovalsRequired int      `json:"approvalsRequired"`
-		SubmittedDate     string   `json:"submittedDate"`
-		CanApprove        bool     `json:"canApprove"`
-		AllowedStatuses   []string `json:"allowedStatuses"`
+		Employee          string            `json:"employee"`
+		Department        string            `json:"department"`
+		Type              string            `json:"type"`
+		ApprovalsReceived int               `json:"approvalsReceived"`
+		ApprovalsRequired int               `json:"approvalsRequired"`
+		SubmittedDate     string            `json:"submittedDate"`
+		CanApprove        bool              `json:"canApprove"`
+		AllowedStatuses   []string          `json:"allowedStatuses"`
+		ApprovalWorkflow  []ApprovalStep    `json:"approvalWorkflow"`
+		CurrentStep       *ApprovalStep     `json:"currentStep"`
+		NextSteps         []ApprovalStep    `json:"nextSteps"`
 	}
 
 	var enhancedClaims []EnhancedClaim
 	for _, claim := range claims {
-		// Check if user can approve this claim and get allowed statuses
+		// Get the claim user's group to determine workflow
+		var claimUser models.User
+		h.DB.Preload("UserGroup").First(&claimUser, claim.UserID)
+		
+		// Build approval workflow for this claim
+		approvalWorkflow := []ApprovalStep{}
+		currentStep := (*ApprovalStep)(nil)
+		nextSteps := []ApprovalStep{}
 		canApprove := false
 		allowedStatuses := []string{}
 		
-		// Check if user is an approver for claims involving this user's group
-		if claim.UserID != user.ID { // Can't approve own claims
-			for _, level := range approverLevels {
-				// Check if the claim user is in the same group as this approval level
-				var claimUser models.User
-				h.DB.Preload("UserGroup").First(&claimUser, claim.UserID)
+		if claimUser.UserGroupID != nil {
+			// Get all approval levels for this user group
+			var allLevels []models.ApprovalLevel
+			h.DB.Preload("Approver").Preload("UserGroup").
+				Where("user_group_id = ?", *claimUser.UserGroupID).
+				Order("level").Find(&allLevels)
+			
+			// Build workflow steps
+			for _, level := range allLevels {
+				step := ApprovalStep{
+					ID:            level.ID,
+					Level:         level.Level,
+					Name:          fmt.Sprintf("Level %d Approval", level.Level),
+					ApproverID:    level.ApproverID,
+					ApproverName:  level.Approver.FirstName + " " + level.Approver.LastName,
+					ApproverEmail: level.Approver.Email,
+					UserGroupID:   level.UserGroupID,
+					UserGroupName: level.UserGroup.Name,
+					Status:        "pending",
+					CompletedAt:   nil,
+					Comments:      "",
+					Permissions: ApprovalPermissions{
+						CanDraft:                level.CanDraft,
+						CanSubmit:               level.CanSubmit,
+						CanApprove:              level.CanApprove,
+						CanReject:               level.CanReject,
+						CanSetPaymentInProgress: level.CanSetPaymentInProgress,
+						CanSetPaid:              level.CanSetPaid,
+					},
+				}
 				
-				if claimUser.UserGroupID != nil && *claimUser.UserGroupID == level.UserGroupID {
+				// Check if this step has been completed
+				var approval models.ClaimApproval
+				err := h.DB.Where("claim_id = ? AND approval_level_id = ?", claim.ID, level.ID).First(&approval).Error
+				if err == nil {
+					step.Status = string(approval.Status)
+					if !approval.CreatedAt.IsZero() {
+						completedAt := approval.CreatedAt.Format(time.RFC3339)
+						step.CompletedAt = &completedAt
+					}
+					step.Comments = approval.Comments
+				}
+				
+				approvalWorkflow = append(approvalWorkflow, step)
+				
+				// Determine current step and next steps based on claim status
+				if step.Status == "pending" && currentStep == nil {
+					currentStep = &step
+					nextSteps = append(nextSteps, step)
+				}
+				
+				// Check if current user can approve this step
+				if claim.UserID != user.ID && level.ApproverID == user.ID && step.Status == "pending" {
 					canApprove = true
 					
 					// Add allowed statuses based on permissions
@@ -93,8 +173,15 @@ func (h *AdminEnhancedHandler) GetAllClaims(w http.ResponseWriter, r *http.Reque
 					if level.CanSetPaid {
 						allowedStatuses = append(allowedStatuses, string(models.StatusPaid))
 					}
-					break
 				}
+			}
+		}
+
+		// Calculate approvals received/required
+		approvalsReceived := 0
+		for _, step := range approvalWorkflow {
+			if step.Status == "approved" {
+				approvalsReceived++
 			}
 		}
 
@@ -103,11 +190,14 @@ func (h *AdminEnhancedHandler) GetAllClaims(w http.ResponseWriter, r *http.Reque
 			Employee:          claim.User.FirstName + " " + claim.User.LastName,
 			Department:        "IT", // TODO: Add department field to User model
 			Type:              claim.ClaimType.Name,
-			ApprovalsReceived: 1, // TODO: Implement actual approval tracking
-			ApprovalsRequired: 3, // TODO: Based on approval levels
+			ApprovalsReceived: approvalsReceived,
+			ApprovalsRequired: len(approvalWorkflow),
 			SubmittedDate:     claim.CreatedAt.Format("2006-01-02"),
 			CanApprove:        canApprove,
 			AllowedStatuses:   allowedStatuses,
+			ApprovalWorkflow:  approvalWorkflow,
+			CurrentStep:       currentStep,
+			NextSteps:         nextSteps,
 		}
 		enhancedClaims = append(enhancedClaims, enhanced)
 	}
@@ -248,12 +338,25 @@ func (h *AdminEnhancedHandler) UpdateClaimStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Find the approval level ID for this user and claim user group
+	var approvalLevelID uint
+	for _, level := range approverLevels {
+		var claimUser models.User
+		h.DB.Preload("UserGroup").First(&claimUser, claim.UserID)
+		
+		if claimUser.UserGroupID != nil && *claimUser.UserGroupID == level.UserGroupID && level.ApproverID == user.ID {
+			approvalLevelID = level.ID
+			break
+		}
+	}
+
 	// Create approval record
 	approval := models.ClaimApproval{
-		ClaimID:    claim.ID,
-		ApproverID: user.ID,
-		Status:     req.Status,
-		Comments:   req.Comments,
+		ClaimID:         claim.ID,
+		ApprovalLevelID: approvalLevelID,
+		ApproverID:      user.ID,
+		Status:          req.Status,
+		Comments:        req.Comments,
 	}
 
 	if err := h.DB.Create(&approval).Error; err != nil {

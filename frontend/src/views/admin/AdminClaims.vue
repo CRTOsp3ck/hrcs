@@ -180,28 +180,31 @@
         </template>
       </Column>
       
-      <Column header="Actions" :exportable="false" style="width: 200px">
+      <Column header="Review" :exportable="false" style="width: 120px">
         <template #body="slotProps">
-          <div class="actions-row">
-            <Button 
-              icon="pi pi-eye" 
-              severity="info" 
-              text 
-              rounded 
-              @click="viewClaim(slotProps.data)"
-              v-tooltip="'View Details'"
-            />
-            <Dropdown 
+          <div class="review-indicator">
+            <Tag 
               v-if="slotProps.data.canApprove && slotProps.data.allowedStatuses?.length > 0"
-              :modelValue="slotProps.data.status"
-              :options="getStatusOptions(slotProps.data)"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Change Status"
-              @update:modelValue="updateClaimStatus(slotProps.data, $event)"
-              class="status-dropdown"
+              value="Needs Review" 
+              severity="warning" 
+              icon="pi pi-exclamation-triangle"
+              class="review-tag"
             />
+            <span v-else class="no-action">-</span>
           </div>
+        </template>
+      </Column>
+      
+      <Column header="Actions" :exportable="false" style="width: 80px">
+        <template #body="slotProps">
+          <Button 
+            icon="pi pi-eye" 
+            severity="info" 
+            text 
+            rounded 
+            @click="viewClaim(slotProps.data)"
+            v-tooltip="'View Details'"
+          />
         </template>
       </Column>
     </DataTable>
@@ -286,21 +289,73 @@
         </div>
         
         <div class="detail-section">
-          <h3>Approval History</h3>
-          <Timeline :value="selectedClaim.approvalHistory" class="approval-timeline">
-            <template #marker="slotProps">
-              <span class="timeline-marker" :class="getApprovalClass(slotProps.item.action)">
-                <i :class="getApprovalIcon(slotProps.item.action)"></i>
-              </span>
-            </template>
-            <template #content="slotProps">
-              <div class="timeline-content">
-                <p class="timeline-title">{{ slotProps.item.title }}</p>
-                <p class="timeline-subtitle">{{ slotProps.item.user }} - {{ formatDateTime(slotProps.item.timestamp) }}</p>
-                <p v-if="slotProps.item.comments" class="timeline-comments">{{ slotProps.item.comments }}</p>
+          <h3>Approval Workflow</h3>
+          <div v-if="selectedClaim.approvalWorkflow && selectedClaim.approvalWorkflow.length > 0" class="workflow-container">
+            <div class="workflow-summary">
+              <div class="summary-item">
+                <span class="summary-label">Progress:</span>
+                <ProgressBar 
+                  :value="getWorkflowProgress(selectedClaim)" 
+                  :showValue="false"
+                  style="width: 200px; height: 8px;"
+                />
+                <span class="summary-value">{{ selectedClaim.approvalsReceived }}/{{ selectedClaim.approvalsRequired }} completed</span>
               </div>
-            </template>
-          </Timeline>
+              <div v-if="selectedClaim.currentStep" class="summary-item">
+                <span class="summary-label">Current Step:</span>
+                <span class="summary-value">{{ selectedClaim.currentStep.name }}</span>
+              </div>
+            </div>
+            
+            <div class="workflow-steps">
+              <div 
+                v-for="(step, index) in selectedClaim.approvalWorkflow" 
+                :key="step.id"
+                class="workflow-step"
+                :class="getStepClass(step)"
+              >
+                <div class="step-header">
+                  <div class="step-number">{{ step.level }}</div>
+                  <div class="step-info">
+                    <h4 class="step-title">{{ step.name }}</h4>
+                    <p class="step-approver">{{ step.approverName }} ({{ step.approverEmail }})</p>
+                    <p class="step-group">Group: {{ step.userGroupName }}</p>
+                  </div>
+                  <div class="step-status">
+                    <Tag 
+                      :value="getStepStatusLabel(step.status)" 
+                      :severity="getStepStatusSeverity(step.status)"
+                      :icon="getStepStatusIcon(step.status)"
+                    />
+                  </div>
+                </div>
+                
+                <div v-if="step.completedAt || step.comments" class="step-details">
+                  <div v-if="step.completedAt" class="step-date">
+                    <i class="pi pi-calendar"></i>
+                    <span>{{ formatDateTime(step.completedAt) }}</span>
+                  </div>
+                  <div v-if="step.comments" class="step-comments">
+                    <i class="pi pi-comment"></i>
+                    <span>{{ step.comments }}</span>
+                  </div>
+                </div>
+                
+                <div v-if="step.status === 'pending'" class="step-permissions">
+                  <div class="permissions-title">Available Actions:</div>
+                  <div class="permissions-list">
+                    <Tag v-if="step.permissions.canApprove" value="Approve" severity="success" size="small" />
+                    <Tag v-if="step.permissions.canReject" value="Reject" severity="danger" size="small" />
+                    <Tag v-if="step.permissions.canSetPaymentInProgress" value="Set Payment In Progress" severity="info" size="small" />
+                    <Tag v-if="step.permissions.canSetPaid" value="Set Paid" severity="contrast" size="small" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="no-workflow">
+            <p>No approval workflow configured for this claim.</p>
+          </div>
         </div>
       </div>
       
@@ -507,6 +562,50 @@ const getRowClass = (data: any) => {
 
 const getApprovalProgress = (claim: any) => {
   return (claim.approvalsReceived / claim.approvalsRequired) * 100
+}
+
+const getWorkflowProgress = (claim: any) => {
+  if (!claim.approvalsRequired || claim.approvalsRequired === 0) return 0
+  return (claim.approvalsReceived / claim.approvalsRequired) * 100
+}
+
+const getStepClass = (step: any) => {
+  return {
+    'step-completed': step.status === 'approved',
+    'step-rejected': step.status === 'rejected',
+    'step-pending': step.status === 'pending',
+    'step-current': step.status === 'pending' // Could be enhanced to show actual current step
+  }
+}
+
+const getStepStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    'pending': 'Pending',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'skipped': 'Skipped'
+  }
+  return labels[status] || status
+}
+
+const getStepStatusSeverity = (status: string) => {
+  const severities: Record<string, string> = {
+    'pending': 'warning',
+    'approved': 'success',
+    'rejected': 'danger',
+    'skipped': 'secondary'
+  }
+  return severities[status] || 'secondary'
+}
+
+const getStepStatusIcon = (status: string) => {
+  const icons: Record<string, string> = {
+    'pending': 'pi pi-clock',
+    'approved': 'pi pi-check',
+    'rejected': 'pi pi-times',
+    'skipped': 'pi pi-forward'
+  }
+  return icons[status] || 'pi pi-circle'
 }
 
 const canApprove = (claim: any) => {
@@ -978,14 +1077,20 @@ onMounted(() => {
   opacity: 0.7;
 }
 
-.actions-row {
+.review-indicator {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
 }
 
-.status-dropdown {
-  min-width: 120px;
+.review-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.no-action {
+  color: var(--surface-400);
+  font-style: italic;
 }
 
 .status-update-section {
@@ -993,6 +1098,178 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
+}
+
+/* Workflow Styles */
+.workflow-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.workflow-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-50);
+  border-radius: 6px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.summary-label {
+  font-weight: 600;
+  color: var(--surface-700);
+  min-width: 80px;
+}
+
+.summary-value {
+  color: var(--surface-900);
+  font-weight: 500;
+}
+
+.workflow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.workflow-step {
+  border: 1px solid var(--surface-200);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--surface-0);
+  transition: all 0.2s ease;
+}
+
+.workflow-step.step-completed {
+  border-color: var(--green-300);
+  background: var(--green-50);
+}
+
+.workflow-step.step-rejected {
+  border-color: var(--red-300);
+  background: var(--red-50);
+}
+
+.workflow-step.step-pending {
+  border-color: var(--orange-300);
+  background: var(--orange-50);
+}
+
+.workflow-step.step-current {
+  border-color: var(--primary-color);
+  background: var(--primary-50);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.1);
+}
+
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.step-completed .step-number {
+  background: var(--green-500);
+}
+
+.step-rejected .step-number {
+  background: var(--red-500);
+}
+
+.step-pending .step-number {
+  background: var(--orange-500);
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--surface-900);
+}
+
+.step-approver {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  color: var(--surface-700);
+}
+
+.step-group {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--surface-600);
+}
+
+.step-status {
+  flex-shrink: 0;
+}
+
+.step-details {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--surface-200);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.step-date, .step-comments {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--surface-700);
+}
+
+.step-permissions {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--surface-200);
+}
+
+.permissions-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--surface-700);
+  margin-bottom: 0.5rem;
+}
+
+.permissions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.no-workflow {
+  padding: 2rem;
+  text-align: center;
+  color: var(--surface-600);
+  background: var(--surface-50);
+  border-radius: 6px;
+  border: 2px dashed var(--surface-200);
 }
 
 @media (max-width: 1200px) {
