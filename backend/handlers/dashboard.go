@@ -27,6 +27,7 @@ type DashboardStats struct {
 	RecentClaims   []models.Claim     `json:"recentClaims"`
 	ClaimsByStatus []ClaimStatusCount `json:"claimsByStatus"`
 	ClaimsByType   []ClaimTypeStats   `json:"claimsByType"`
+	TotalUsers     int64              `json:"totalUsers"` // Admin only
 }
 
 type ClaimStatusCount struct {
@@ -144,6 +145,9 @@ func (h *DashboardHandler) GetAdminStats(w http.ResponseWriter, r *http.Request)
 		Group("claim_types.id, claim_types.name").
 		Scan(&claimsByType)
 	stats.ClaimsByType = claimsByType
+
+	// Get total users count
+	h.db.Model(&models.User{}).Count(&stats.TotalUsers)
 
 	utils.WriteSuccess(w, stats, "Admin dashboard stats retrieved successfully")
 }

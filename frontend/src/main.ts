@@ -16,6 +16,7 @@ import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import DataTable from 'primevue/datatable'
+import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/select'
@@ -90,6 +91,7 @@ app.component('InputText', InputText)
 app.component('Password', Password)
 app.component('DataTable', DataTable)
 app.component('Column', Column)
+app.component('Checkbox', Checkbox)
 app.component('Dialog', Dialog)
 app.component('Dropdown', Dropdown)
 app.component('Textarea', Textarea)

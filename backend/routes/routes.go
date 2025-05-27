@@ -14,6 +14,7 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 	userHandler := handlers.NewUserHandler(db)
 	claimHandler := handlers.NewClaimHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
+	adminEnhanced := handlers.NewAdminEnhancedHandler(db)
 	dashboardHandler := handlers.NewDashboardHandler(db)
 
 	authMiddleware := middleware.AuthMiddleware(db, cfg.JWTSecret)
@@ -44,9 +45,53 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 				})
 			})
 
+			// Admin routes with /admin prefix
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AdminRequired)
 
+				r.Route("/admin", func(r chi.Router) {
+					// Claims management
+					r.Route("/claims", func(r chi.Router) {
+						r.Get("/", adminEnhanced.GetAllClaims)
+						r.Post("/{id}/approve", adminEnhanced.AdminApproveClaim)
+						r.Post("/{id}/reject", adminEnhanced.AdminRejectClaim)
+					})
+
+					// Users management
+					r.Route("/users", func(r chi.Router) {
+						r.Get("/", adminEnhanced.GetAdminUsers)
+						r.Post("/", adminEnhanced.CreateAdminUser)
+						r.Put("/{id}", adminEnhanced.UpdateAdminUser)
+						r.Delete("/{id}", adminEnhanced.DeleteAdminUser)
+					})
+
+					// Groups management
+					r.Route("/groups", func(r chi.Router) {
+						r.Get("/", adminEnhanced.GetEnhancedGroups)
+						r.Post("/", adminEnhanced.CreateEnhancedGroup)
+						r.Put("/{id}", adminEnhanced.UpdateEnhancedGroup)
+						r.Delete("/{id}", adminEnhanced.DeleteEnhancedGroup)
+					})
+
+					// Claim Types management
+					r.Route("/claim-types", func(r chi.Router) {
+						r.Get("/", adminEnhanced.GetEnhancedClaimTypes)
+						r.Post("/", adminEnhanced.CreateEnhancedClaimType)
+						r.Put("/{id}", adminEnhanced.UpdateEnhancedClaimType)
+						r.Delete("/{id}", adminHandler.DeleteClaimType)
+					})
+
+					// Approval Levels management
+					r.Route("/approval-levels", func(r chi.Router) {
+						r.Get("/", adminEnhanced.GetEnhancedApprovalLevels)
+						r.Post("/", adminEnhanced.CreateEnhancedApprovalLevel)
+						r.Put("/{id}", adminEnhanced.UpdateEnhancedApprovalLevel)
+						r.Delete("/{id}", adminEnhanced.DeleteEnhancedApprovalLevel)
+						r.Put("/order", adminEnhanced.UpdateApprovalLevelOrder)
+					})
+				})
+
+				// Legacy routes (keeping for backward compatibility)
 				r.Get("/users", userHandler.GetUsers)
 				r.Put("/users/{id}/role", userHandler.UpdateUserRole)
 
