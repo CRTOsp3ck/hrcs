@@ -1,18 +1,18 @@
 <template>
   <div class="page-container">
     <Breadcrumb :model="breadcrumbItems" class="mb-4" />
-    
+
     <Card>
       <template #header>
         <h1 class="card-title">Create New Claim</h1>
       </template>
-      
+
       <template #content>
         <form @submit.prevent="handleSubmit" class="claim-form">
           <div class="form-grid">
             <div class="form-field span-2">
               <label for="title" class="form-label required">Claim Title</label>
-              <InputText 
+              <InputText
                 id="title"
                 v-model="form.title"
                 placeholder="e.g., Business Trip to New York"
@@ -21,10 +21,10 @@
               />
               <small v-if="errors.title" class="p-error">{{ errors.title }}</small>
             </div>
-            
+
             <div class="form-field">
               <label for="type" class="form-label required">Claim Type</label>
-              <Dropdown 
+              <Dropdown
                 id="type"
                 v-model="form.claim_type_id"
                 :options="claimTypes"
@@ -36,10 +36,10 @@
               />
               <small v-if="errors.claim_type_id" class="p-error">{{ errors.claim_type_id }}</small>
             </div>
-            
+
             <div class="form-field">
               <label for="amount" class="form-label required">Amount ($)</label>
-              <InputNumber 
+              <InputNumber
                 id="amount"
                 v-model="form.amount"
                 mode="currency"
@@ -52,10 +52,10 @@
               />
               <small v-if="errors.amount" class="p-error">{{ errors.amount }}</small>
             </div>
-            
+
             <div class="form-field span-2">
               <label for="description" class="form-label required">Description</label>
-              <Textarea 
+              <Textarea
                 id="description"
                 v-model="form.description"
                 rows="5"
@@ -68,7 +68,7 @@
                 {{ form.description.length }}/1000 characters
               </small>
             </div>
-            
+
             <div class="form-field span-2">
               <label class="form-label">Attachments</label>
               <div class="attachment-area">
@@ -80,26 +80,26 @@
               </div>
             </div>
           </div>
-          
+
           <Divider />
-          
+
           <div class="form-actions">
-            <Button 
-              label="Cancel" 
-              severity="secondary" 
+            <Button
+              label="Cancel"
+              severity="secondary"
               outlined
               @click="router.push('/claims')"
             />
             <div class="form-actions-right">
-              <Button 
-                label="Save as Draft" 
+              <Button
+                label="Save as Draft"
                 icon="pi pi-save"
                 severity="secondary"
                 @click="saveDraft"
                 :loading="saving"
               />
-              <Button 
-                label="Submit Claim" 
+              <Button
+                label="Submit Claim"
                 icon="pi pi-send"
                 type="submit"
                 :loading="submitting"
@@ -109,7 +109,7 @@
         </form>
       </template>
     </Card>
-    
+
     <!-- Tips Panel -->
     <Card class="tips-card">
       <template #header>
@@ -182,7 +182,7 @@ const breadcrumbItems = [
 const validateForm = () => {
   let isValid = true
   Object.keys(errors).forEach(key => errors[key as keyof typeof errors] = '')
-  
+
   if (!form.title) {
     errors.title = 'Title is required'
     isValid = false
@@ -190,17 +190,17 @@ const validateForm = () => {
     errors.title = 'Title must be at least 5 characters'
     isValid = false
   }
-  
+
   if (!form.claim_type_id) {
     errors.claim_type_id = 'Please select a claim type'
     isValid = false
   }
-  
+
   if (!form.amount || form.amount <= 0) {
     errors.amount = 'Amount must be greater than 0'
     isValid = false
   }
-  
+
   if (!form.description) {
     errors.description = 'Description is required'
     isValid = false
@@ -211,27 +211,27 @@ const validateForm = () => {
     errors.description = 'Description cannot exceed 1000 characters'
     isValid = false
   }
-  
+
   return isValid
 }
 
 const saveDraft = async () => {
   if (!validateForm()) return
-  
+
   saving.value = true
   try {
     const response = await claimsApi.create({
       ...form,
       status: 'draft'
     })
-    
+
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: 'Claim saved as draft',
       life: 3000
     })
-    
+
     router.push(`/claims/${response.data.data?.id}`)
   } catch (error) {
     toast.add({
@@ -247,24 +247,24 @@ const saveDraft = async () => {
 
 const handleSubmit = async () => {
   if (!validateForm()) return
-  
+
   submitting.value = true
   try {
     const response = await claimsApi.create({
       ...form,
       status: 'draft'
     })
-    
+
     if (response.data.data?.id) {
       await claimsApi.submit(response.data.data.id)
-      
+
       toast.add({
         severity: 'success',
         summary: 'Success',
         detail: 'Claim submitted successfully',
         life: 3000
       })
-      
+
       router.push(`/claims/${response.data.data.id}`)
     }
   } catch (error) {
@@ -282,8 +282,10 @@ const handleSubmit = async () => {
 const loadClaimTypes = async () => {
   try {
     const response = await claimTypesApi.getAll()
+    // console.log('Claim types response', response.data.data)
     if (response.data.data) {
-      claimTypes.value = response.data.data.filter(type => type.is_active)
+      // claimTypes.value = response.data.data.filter(type => type.is_active) - will implement is active later
+      claimTypes.value = response.data.data
     }
   } catch (error) {
     toast.add({
@@ -414,20 +416,20 @@ onMounted(() => {
   .form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .span-2 {
     grid-column: span 1;
   }
-  
+
   .form-actions {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .form-actions-right {
     width: 100%;
   }
-  
+
   .form-actions-right button {
     flex: 1;
   }

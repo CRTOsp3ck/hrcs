@@ -40,6 +40,16 @@ func NewClaimHandler(db *gorm.DB) *ClaimHandler {
 	return &ClaimHandler{DB: db}
 }
 
+func (h *ClaimHandler) GetClaimTypes(w http.ResponseWriter, r *http.Request) {
+	var claimTypes []models.ClaimType
+	if err := h.DB.Find(&claimTypes).Error; err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to retrieve claim types")
+		return
+	}
+
+	utils.WriteSuccess(w, claimTypes)
+}
+
 func (h *ClaimHandler) CreateClaim(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUserFromContext(r.Context())
 	
