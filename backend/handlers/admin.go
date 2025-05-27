@@ -199,8 +199,15 @@ func (h *AdminHandler) CreateApprovalLevel(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Auto-assign the next level number for this user group
+	var maxLevel int
+	h.DB.Model(&models.ApprovalLevel{}).
+		Where("user_group_id = ?", req.UserGroupID).
+		Select("COALESCE(MAX(level), 0)").
+		Scan(&maxLevel)
+
 	approvalLevel := models.ApprovalLevel{
-		Level:                   req.Level,
+		Level:                   maxLevel + 1, // Auto-increment level for this group
 		UserGroupID:             req.UserGroupID,
 		ApproverID:              req.ApproverID,
 		CanDraft:                req.CanDraft,
@@ -226,7 +233,15 @@ func (h *AdminHandler) CreateApprovalLevel(w http.ResponseWriter, r *http.Reques
 
 func (h *AdminHandler) GetApprovalLevels(w http.ResponseWriter, r *http.Request) {
 	var approvalLevels []models.ApprovalLevel
-	if err := h.DB.Preload("UserGroup").Preload("Approver").Find(&approvalLevels).Error; err != nil {
+	query := h.DB.Preload("UserGroup").Preload("Approver").Order("user_group_id, level")
+	
+	// Support filtering by user group if provided
+	groupID := r.URL.Query().Get("group_id")
+	if groupID != "" {
+		query = query.Where("user_group_id = ?", groupID)
+	}
+	
+	if err := query.Find(&approvalLevels).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to retrieve approval levels")
 		return
 	}
@@ -283,9 +298,28 @@ func (h *AdminHandler) DeleteApprovalLevel(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := h.DB.Delete(&models.ApprovalLevel{}, approvalLevelID).Error; err != nil {
+	// Get the approval level to be deleted
+	var approvalLevel models.ApprovalLevel
+	if err := h.DB.First(&approvalLevel, approvalLevelID).Error; err != nil {
+		utils.WriteError(w, http.StatusNotFound, "Approval level not found")
+		return
+	}
+
+	// Delete the approval level
+	if err := h.DB.Delete(&approvalLevel).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to delete approval level")
 		return
+	}
+
+	// Reorder remaining levels for this user group
+	var remainingLevels []models.ApprovalLevel
+	if err := h.DB.Where("user_group_id = ? AND level > ?", approvalLevel.UserGroupID, approvalLevel.Level).
+		Order("level").Find(&remainingLevels).Error; err == nil {
+		// Update levels to fill the gap
+		for _, level := range remainingLevels {
+			level.Level--
+			h.DB.Save(&level)
+		}
 	}
 
 	utils.WriteSuccess(w, nil, "Approval level deleted successfully")

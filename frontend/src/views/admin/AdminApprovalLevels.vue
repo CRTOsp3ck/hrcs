@@ -1,8 +1,8 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h1 class="page-title">Approval Levels</h1>
-      <p class="page-subtitle">Configure approval levels and permissions for each user group</p>
+      <h1 class="page-title">Approval Workflow</h1>
+      <p class="page-subtitle">Configure approval flow for each user group</p>
     </div>
 
     <!-- Info Banner -->
@@ -10,101 +10,111 @@
       <template #default>
         <div class="info-content">
           <i class="pi pi-info-circle"></i>
-          <span>Each user group can have multiple approval levels (1, 2, 3, etc.) with different status permissions.</span>
+          <span>Each user group has its own approval flow. Add approvers to create a sequential approval chain (1st → 2nd → 3rd approver, etc.)</span>
         </div>
       </template>
     </Message>
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <Button label="Add Approval Level" icon="pi pi-plus" @click="showAddDialog = true" />
-      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" @click="loadApprovalLevels" :loading="loading" />
+      <Button label="Add Approver" icon="pi pi-plus" @click="showAddDialog = true" />
+      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" @click="loadData" :loading="loading" />
     </div>
 
-    <!-- Approval Levels Table -->
-    <DataTable 
-      :value="approvalLevels" 
-      :loading="loading"
-      stripedRows
-      showGridlines
-      class="approval-levels-table"
-    >
-      <template #empty>
-        <div class="empty-state">
-          <i class="pi pi-sitemap"></i>
-          <p>No approval levels configured</p>
-        </div>
-      </template>
-
-      <Column field="user_group.name" header="User Group" sortable>
-        <template #body="{ data }">
-          <Tag :value="data.user_group?.name || 'N/A'" severity="info" />
-        </template>
-      </Column>
-
-      <Column field="level" header="Level" sortable>
-        <template #body="{ data }">
-          <Badge :value="`Level ${data.level}`" severity="success" />
-        </template>
-      </Column>
-
-      <Column field="approver.name" header="Approver">
-        <template #body="{ data }">
-          <div class="approver-info">
-            <Avatar 
-              :label="getInitials(data.approver)" 
+    <!-- User Groups with Approval Flows -->
+    <div v-if="groupedApprovalLevels.length > 0" class="groups-container">
+      <Card v-for="group in groupedApprovalLevels" :key="group.id" class="group-card">
+        <template #header>
+          <div class="group-header">
+            <div class="group-info">
+              <h3 class="group-name">{{ group.name }}</h3>
+              <Tag :value="`${group.levels.length} approver${group.levels.length !== 1 ? 's' : ''}`" severity="info" />
+            </div>
+            <Button 
+              label="Add Approver" 
+              icon="pi pi-plus" 
               size="small"
-              style="margin-right: 0.5rem"
+              @click="addApproverToGroup(group)"
             />
-            {{ data.approver?.first_name }} {{ data.approver?.last_name }}
           </div>
         </template>
-      </Column>
+        <template #content>
+          <div v-if="group.levels.length === 0" class="empty-group">
+            <i class="pi pi-users"></i>
+            <p>No approvers configured for this group</p>
+          </div>
+          <div v-else class="approval-flow">
+            <div v-for="(level, index) in group.levels" :key="level.id" class="approval-level">
+              <div class="level-number">
+                <Badge :value="`${index + 1}`" severity="success" size="large" />
+                <div class="level-label">{{ getOrdinal(index + 1) }} Approver</div>
+              </div>
+              <div class="level-details">
+                <div class="approver-info">
+                  <Avatar 
+                    :label="getInitials(level.approver)" 
+                    size="large"
+                  />
+                  <div class="approver-name">
+                    <strong>{{ level.approver?.first_name }} {{ level.approver?.last_name }}</strong>
+                    <div class="approver-email">{{ level.approver?.email }}</div>
+                  </div>
+                </div>
+                <div class="permissions">
+                  <div class="permission-label">Can perform:</div>
+                  <div class="permissions-grid">
+                    <Tag v-if="level.can_draft" value="Draft" severity="secondary" />
+                    <Tag v-if="level.can_submit" value="Submit" severity="info" />
+                    <Tag v-if="level.can_approve" value="Approve" severity="success" />
+                    <Tag v-if="level.can_reject" value="Reject" severity="danger" />
+                    <Tag v-if="level.can_set_payment_in_progress" value="Payment in Progress" severity="warning" />
+                    <Tag v-if="level.can_set_paid" value="Paid" severity="success" />
+                  </div>
+                </div>
+                <div class="level-actions">
+                  <Button 
+                    icon="pi pi-pencil" 
+                    severity="secondary" 
+                    text 
+                    rounded
+                    @click="editLevel(level)"
+                    v-tooltip.top="'Edit permissions'"
+                  />
+                  <Button 
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    text 
+                    rounded
+                    @click="confirmDelete(level)"
+                    v-tooltip.top="'Remove approver'"
+                  />
+                </div>
+              </div>
+              <div v-if="index < group.levels.length - 1" class="flow-arrow">
+                <i class="pi pi-arrow-down"></i>
+              </div>
+            </div>
+          </div>
+        </template>
+      </Card>
+    </div>
 
-      <Column header="Status Permissions">
-        <template #body="{ data }">
-          <div class="permissions-grid">
-            <Tag v-if="data.can_draft" value="Draft" severity="secondary" />
-            <Tag v-if="data.can_submit" value="Submit" severity="info" />
-            <Tag v-if="data.can_approve" value="Approve" severity="success" />
-            <Tag v-if="data.can_reject" value="Reject" severity="danger" />
-            <Tag v-if="data.can_set_payment_in_progress" value="Payment in Progress" severity="warning" />
-            <Tag v-if="data.can_set_paid" value="Paid" severity="success" />
-          </div>
-        </template>
-      </Column>
-
-      <Column header="Actions" style="width: 150px">
-        <template #body="{ data }">
-          <div class="action-buttons">
-            <Button 
-              icon="pi pi-pencil" 
-              severity="secondary" 
-              text 
-              @click="editLevel(data)"
-              v-tooltip.top="'Edit'"
-            />
-            <Button 
-              icon="pi pi-trash" 
-              severity="danger" 
-              text 
-              @click="confirmDelete(data)"
-              v-tooltip.top="'Delete'"
-            />
-          </div>
-        </template>
-      </Column>
-    </DataTable>
+    <!-- Empty State -->
+    <div v-else-if="!loading" class="empty-state">
+      <i class="pi pi-sitemap"></i>
+      <h3>No User Groups Found</h3>
+      <p>Create user groups first to configure approval workflows</p>
+    </div>
 
     <!-- Add/Edit Dialog -->
     <Dialog 
       v-model:visible="showAddDialog" 
-      :header="editingItem ? 'Edit Approval Level' : 'Add Approval Level'"
+      :header="editingItem ? 'Edit Approver Permissions' : 'Add Approver'"
       :style="{ width: '600px' }"
       modal
     >
       <div class="form-container">
-        <div class="field">
+        <div v-if="!editingItem" class="field">
           <label for="userGroup">User Group *</label>
           <Dropdown
             id="userGroup"
@@ -114,29 +124,15 @@
             optionValue="id"
             placeholder="Select a user group"
             class="w-full"
-            :disabled="editingItem"
           />
         </div>
 
-        <div class="field">
-          <label for="level">Level *</label>
-          <InputNumber
-            id="level"
-            v-model="form.level"
-            :min="1"
-            :max="10"
-            placeholder="Enter level (1, 2, 3...)"
-            class="w-full"
-            :disabled="editingItem"
-          />
-        </div>
-
-        <div class="field">
+        <div v-if="!editingItem" class="field">
           <label for="approver">Approver *</label>
           <Dropdown
             id="approver"
             v-model="form.approver_id"
-            :options="availableUsers"
+            :options="availableUsersForGroup"
             optionLabel="name"
             optionValue="id"
             placeholder="Select an approver"
@@ -150,6 +146,18 @@
               </div>
             </template>
           </Dropdown>
+        </div>
+
+        <div v-if="editingItem" class="edit-info">
+          <div class="info-row">
+            <strong>User Group:</strong> {{ editingItem.user_group?.name }}
+          </div>
+          <div class="info-row">
+            <strong>Approver:</strong> {{ editingItem.approver?.first_name }} {{ editingItem.approver?.last_name }}
+          </div>
+          <div class="info-row">
+            <strong>Level:</strong> {{ getOrdinal(editingItem.level) }} Approver
+          </div>
         </div>
 
         <Divider />
@@ -210,7 +218,7 @@
       </div>
       
       <template #footer>
-        <Button label="Cancel" severity="secondary" @click="showAddDialog = false" />
+        <Button label="Cancel" severity="secondary" @click="closeDialog" />
         <Button label="Save" @click="saveItem" :loading="saving" />
       </template>
     </Dialog>
@@ -224,8 +232,8 @@
     >
       <div class="confirmation-content">
         <i class="pi pi-exclamation-triangle" style="font-size: 2rem; color: var(--red-500)"></i>
-        <p>Are you sure you want to delete this approval level?</p>
-        <p class="text-secondary">This action cannot be undone.</p>
+        <p>Are you sure you want to remove this approver?</p>
+        <p class="text-secondary">This will update the approval flow for the group.</p>
       </div>
       
       <template #footer>
@@ -237,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { approvalLevelsApi, userGroupsApi, usersApi } from '@/api'
 import type { ApprovalLevel, UserGroup, User } from '@/types'
@@ -253,17 +261,61 @@ const showAddDialog = ref(false)
 const showDeleteDialog = ref(false)
 const editingItem = ref<ApprovalLevel | null>(null)
 const itemToDelete = ref<ApprovalLevel | null>(null)
+const selectedGroupId = ref<number | null>(null)
 
 const form = ref({
   user_group_id: null as number | null,
-  level: 1,
   approver_id: null as number | null,
   can_draft: false,
-  can_submit: false,
+  can_submit: true,
   can_approve: true,
   can_reject: true,
   can_set_payment_in_progress: false,
   can_set_paid: false
+})
+
+// Group approval levels by user group
+const groupedApprovalLevels = computed(() => {
+  const groups: any[] = []
+  const groupMap = new Map()
+
+  // First, create entries for all user groups
+  availableGroups.value.forEach(group => {
+    groupMap.set(group.id, {
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      levels: []
+    })
+  })
+
+  // Then, add approval levels to their respective groups
+  approvalLevels.value.forEach(level => {
+    if (groupMap.has(level.user_group_id)) {
+      groupMap.get(level.user_group_id).levels.push(level)
+    }
+  })
+
+  // Convert to array and sort levels within each group
+  groupMap.forEach(group => {
+    group.levels.sort((a: ApprovalLevel, b: ApprovalLevel) => a.level - b.level)
+    groups.push(group)
+  })
+
+  return groups.sort((a, b) => a.name.localeCompare(b.name))
+})
+
+// Filter available users based on selected group
+const availableUsersForGroup = computed(() => {
+  if (!form.value.user_group_id) return availableUsers.value
+
+  // Get users already assigned as approvers for this group
+  const assignedUserIds = approvalLevels.value
+    .filter(level => level.user_group_id === form.value.user_group_id)
+    .map(level => level.approver_id)
+
+  // Return users not already assigned
+  return availableUsers.value.filter(user => !assignedUserIds.includes(user.id))
 })
 
 const getInitials = (user: any) => {
@@ -273,29 +325,22 @@ const getInitials = (user: any) => {
   return (firstName[0] || '') + (lastName[0] || '')
 }
 
-const loadApprovalLevels = async () => {
-  loading.value = true
-  try {
-    const response = await approvalLevelsApi.getAll()
-    approvalLevels.value = response.data.data || []
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load approval levels',
-      life: 3000
-    })
-  } finally {
-    loading.value = false
-  }
+const getOrdinal = (num: number) => {
+  const suffixes = ['th', 'st', 'nd', 'rd']
+  const v = num % 100
+  return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0])
 }
 
-const loadResources = async () => {
+const loadData = async () => {
+  loading.value = true
   try {
-    const [usersRes, groupsRes] = await Promise.all([
+    const [levelsRes, usersRes, groupsRes] = await Promise.all([
+      approvalLevelsApi.getAll(),
       usersApi.getAll(),
       userGroupsApi.getAll()
     ])
+    
+    approvalLevels.value = levelsRes.data.data || []
     
     // Format users for display
     availableUsers.value = (usersRes.data.data || []).map(user => ({
@@ -305,15 +350,27 @@ const loadResources = async () => {
     
     availableGroups.value = groupsRes.data.data || []
   } catch (error) {
-    console.error('Failed to load resources:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load data',
+      life: 3000
+    })
+  } finally {
+    loading.value = false
   }
+}
+
+const addApproverToGroup = (group: any) => {
+  selectedGroupId.value = group.id
+  form.value.user_group_id = group.id
+  showAddDialog.value = true
 }
 
 const editLevel = (level: ApprovalLevel) => {
   editingItem.value = level
   form.value = {
     user_group_id: level.user_group_id,
-    level: level.level,
     approver_id: level.approver_id,
     can_draft: level.can_draft,
     can_submit: level.can_submit,
@@ -330,8 +387,13 @@ const confirmDelete = (level: ApprovalLevel) => {
   showDeleteDialog.value = true
 }
 
+const closeDialog = () => {
+  showAddDialog.value = false
+  resetForm()
+}
+
 const saveItem = async () => {
-  if (!form.value.user_group_id || !form.value.approver_id) {
+  if (!editingItem.value && (!form.value.user_group_id || !form.value.approver_id)) {
     toast.add({
       severity: 'warn',
       summary: 'Validation Error',
@@ -344,11 +406,19 @@ const saveItem = async () => {
   saving.value = true
   try {
     if (editingItem.value) {
-      await approvalLevelsApi.update(editingItem.value.id, form.value)
+      // Only update permissions for existing level
+      await approvalLevelsApi.update(editingItem.value.id, {
+        can_draft: form.value.can_draft,
+        can_submit: form.value.can_submit,
+        can_approve: form.value.can_approve,
+        can_reject: form.value.can_reject,
+        can_set_payment_in_progress: form.value.can_set_payment_in_progress,
+        can_set_paid: form.value.can_set_paid
+      })
       toast.add({
         severity: 'success',
         summary: 'Success',
-        detail: 'Approval level updated successfully',
+        detail: 'Approver permissions updated successfully',
         life: 3000
       })
     } else {
@@ -356,18 +426,17 @@ const saveItem = async () => {
       toast.add({
         severity: 'success',
         summary: 'Success',
-        detail: 'Approval level created successfully',
+        detail: 'Approver added successfully',
         life: 3000
       })
     }
-    showAddDialog.value = false
-    loadApprovalLevels()
-    resetForm()
+    closeDialog()
+    loadData()
   } catch (error: any) {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.message || 'Failed to save approval level',
+      detail: error.response?.data?.message || 'Failed to save',
       life: 3000
     })
   } finally {
@@ -383,16 +452,16 @@ const deleteItem = async () => {
     toast.add({
       severity: 'success',
       summary: 'Success',
-      detail: 'Approval level deleted successfully',
+      detail: 'Approver removed successfully',
       life: 3000
     })
     showDeleteDialog.value = false
-    loadApprovalLevels()
+    loadData()
   } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to delete approval level',
+      detail: 'Failed to remove approver',
       life: 3000
     })
   }
@@ -400,12 +469,12 @@ const deleteItem = async () => {
 
 const resetForm = () => {
   editingItem.value = null
+  selectedGroupId.value = null
   form.value = {
     user_group_id: null,
-    level: 1,
     approver_id: null,
     can_draft: false,
-    can_submit: false,
+    can_submit: true,
     can_approve: true,
     can_reject: true,
     can_set_payment_in_progress: false,
@@ -414,8 +483,7 @@ const resetForm = () => {
 }
 
 onMounted(() => {
-  loadApprovalLevels()
-  loadResources()
+  loadData()
 })
 </script>
 
@@ -457,28 +525,103 @@ onMounted(() => {
   margin-bottom: 1.5rem;
 }
 
-.approval-levels-table {
+.groups-container {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.group-card {
   background: var(--surface-card);
   border-radius: var(--border-radius);
   overflow: hidden;
 }
 
-.empty-state {
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--surface-ground);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.group-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.empty-group {
   text-align: center;
   padding: 3rem;
   color: var(--text-color-secondary);
 }
 
-.empty-state i {
+.empty-group i {
   font-size: 3rem;
   margin-bottom: 1rem;
   display: block;
   opacity: 0.3;
 }
 
+.approval-flow {
+  padding: 1rem;
+}
+
+.approval-level {
+  margin-bottom: 1rem;
+}
+
+.level-details {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--surface-ground);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--surface-border);
+}
+
+.level-number {
+  text-align: center;
+}
+
+.level-label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  margin-top: 0.25rem;
+}
+
 .approver-info {
   display: flex;
   align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.approver-name {
+  flex: 1;
+}
+
+.approver-email {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.permissions {
+  flex: 2;
+}
+
+.permission-label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.5rem;
 }
 
 .permissions-grid {
@@ -487,9 +630,34 @@ onMounted(() => {
   gap: 0.25rem;
 }
 
-.action-buttons {
+.level-actions {
   display: flex;
   gap: 0.25rem;
+}
+
+.flow-arrow {
+  text-align: center;
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-color-secondary);
+}
+
+.empty-state i {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  display: block;
+  opacity: 0.3;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-color);
 }
 
 .form-container {
@@ -507,6 +675,22 @@ onMounted(() => {
 .field label {
   font-weight: 500;
   color: var(--text-color);
+}
+
+.edit-info {
+  background: var(--surface-ground);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+}
+
+.info-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
 }
 
 .permissions-checkboxes {
