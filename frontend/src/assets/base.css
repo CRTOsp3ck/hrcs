@@ -30,6 +30,8 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent layout shift by always showing scrollbar gutter */
+  scrollbar-gutter: stable;
 }
 
 /* Remove list styles on ul, ol elements with a list role */
