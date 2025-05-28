@@ -1,7 +1,10 @@
 package config
 
 import (
+	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -11,6 +14,12 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Load .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("Warning: .env file not found: %v", err)
+	}
+
 	return &Config{
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost/hrcs?sslmode=disable"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),
