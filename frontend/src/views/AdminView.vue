@@ -5,10 +5,10 @@
         <i class="pi pi-shield"></i>
         <span>Admin Panel</span>
       </div>
-      
+
       <nav class="sidebar-nav">
-        <router-link 
-          v-for="item in menuItems" 
+        <router-link
+          v-for="item in menuItems"
           :key="item.route"
           :to="item.route"
           class="nav-item"
@@ -19,7 +19,7 @@
         </router-link>
       </nav>
     </div>
-    
+
     <div class="admin-content">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -122,7 +122,7 @@ const menuItems = [
 .admin-content {
   flex: 1;
   background: var(--surface-50);
-  overflow-y: auto;
+  /* overflow-y: auto;  */
 }
 
 @media (max-width: 1024px) {
@@ -135,25 +135,25 @@ const menuItems = [
   .admin-layout {
     flex-direction: column;
   }
-  
+
   .admin-sidebar {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--surface-200);
   }
-  
+
   .sidebar-nav {
     display: flex;
     overflow-x: auto;
     padding: 0;
   }
-  
+
   .nav-item {
     white-space: nowrap;
     border-left: none !important;
     border-bottom: 3px solid transparent;
   }
-  
+
   .nav-item.active {
     border-bottom-color: var(--primary-600);
   }
