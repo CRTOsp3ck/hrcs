@@ -5,9 +5,9 @@
         <h1 class="page-title">My Claims</h1>
         <p class="page-subtitle">Manage and track all your expense claims</p>
       </div>
-      <Button 
-        label="New Claim" 
-        icon="pi pi-plus" 
+      <Button
+        label="New Claim"
+        icon="pi pi-plus"
         @click="router.push('/claims/new')"
       />
     </div>
@@ -18,21 +18,21 @@
         <div class="filters-grid">
           <div class="filter-field">
             <label class="filter-label">Search</label>
-            <span class="p-input-icon-left w-full">
-              <i class="pi pi-search" />
-              <InputText 
-                v-model="filters.search" 
-                placeholder="Search by title or description" 
+            <span class="w-full">
+              <!-- <i class="pi pi-search" /> -->
+              <InputText
+                v-model="filters.search"
+                placeholder="Search by title or description"
                 class="w-full"
               />
             </span>
           </div>
-          
+
           <div class="filter-field">
             <label class="filter-label">Status</label>
-            <Dropdown 
-              v-model="filters.status" 
-              :options="statusOptions" 
+            <Dropdown
+              v-model="filters.status"
+              :options="statusOptions"
               optionLabel="label"
               optionValue="value"
               placeholder="All Statuses"
@@ -40,12 +40,12 @@
               showClear
             />
           </div>
-          
+
           <div class="filter-field">
             <label class="filter-label">Type</label>
-            <Dropdown 
-              v-model="filters.type" 
-              :options="claimTypes" 
+            <Dropdown
+              v-model="filters.type"
+              :options="claimTypes"
               optionLabel="name"
               optionValue="id"
               placeholder="All Types"
@@ -53,18 +53,18 @@
               showClear
             />
           </div>
-          
+
           <div class="filter-field">
             <label class="filter-label">Date Range</label>
             <div class="date-range">
-              <InputText 
-                v-model="filters.dateFrom" 
+              <InputText
+                v-model="filters.dateFrom"
                 type="date"
                 class="w-full"
               />
               <span class="date-separator">to</span>
-              <InputText 
-                v-model="filters.dateTo" 
+              <InputText
+                v-model="filters.dateTo"
                 type="date"
                 class="w-full"
               />
@@ -77,8 +77,8 @@
     <!-- Claims Table -->
     <Card>
       <template #content>
-        <DataTable 
-          :value="filteredClaims" 
+        <DataTable
+          :value="filteredClaims"
           :loading="loading"
           paginator
           :rows="10"
@@ -104,22 +104,22 @@
               <i class="pi pi-inbox empty-icon"></i>
               <h3>No claims found</h3>
               <p>Start by creating your first claim</p>
-              <Button 
-                label="Create Claim" 
-                icon="pi pi-plus" 
+              <Button
+                label="Create Claim"
+                icon="pi pi-plus"
                 @click="router.push('/claims/new')"
               />
             </div>
           </template>
-          
+
           <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-          
+
           <Column field="id" header="ID" :sortable="true" style="width: 80px">
             <template #body="slotProps">
               <span class="font-mono">#{{ slotProps.data.id }}</span>
             </template>
           </Column>
-          
+
           <Column field="title" header="Title" :sortable="true">
             <template #body="slotProps">
               <router-link :to="`/claims/${slotProps.data.id}`" class="claim-link">
@@ -127,19 +127,19 @@
               </router-link>
             </template>
           </Column>
-          
+
           <Column field="claim_type.name" header="Type" :sortable="true" style="width: 150px">
             <template #body="slotProps">
               <Tag :value="slotProps.data.claim_type?.name" severity="info" />
             </template>
           </Column>
-          
+
           <Column field="amount" header="Amount" :sortable="true" style="width: 120px">
             <template #body="slotProps">
               <span class="amount">${{ formatAmount(slotProps.data.amount) }}</span>
             </template>
           </Column>
-          
+
           <Column field="status" header="Status" :sortable="true" style="width: 180px">
             <template #body="slotProps">
               <span :class="`status-badge status-${slotProps.data.status}`">
@@ -148,35 +148,35 @@
               </span>
             </template>
           </Column>
-          
+
           <Column field="created_at" header="Submitted" :sortable="true" style="width: 120px">
             <template #body="slotProps">
               {{ formatDate(slotProps.data.submitted_at || slotProps.data.created_at) }}
             </template>
           </Column>
-          
+
           <Column header="Actions" :exportable="false" style="width: 120px">
             <template #body="slotProps">
               <div class="action-buttons">
-                <Button 
-                  icon="pi pi-eye" 
-                  text 
-                  rounded 
+                <Button
+                  icon="pi pi-eye"
+                  text
+                  rounded
                   v-tooltip="'View'"
                   @click="router.push(`/claims/${slotProps.data.id}`)"
                 />
-                <Button 
-                  icon="pi pi-pencil" 
-                  text 
-                  rounded 
+                <Button
+                  icon="pi pi-pencil"
+                  text
+                  rounded
                   v-tooltip="'Edit'"
                   :disabled="!canEdit(slotProps.data)"
                   @click="router.push(`/claims/${slotProps.data.id}/edit`)"
                 />
-                <Button 
-                  icon="pi pi-trash" 
-                  text 
-                  rounded 
+                <Button
+                  icon="pi pi-trash"
+                  text
+                  rounded
                   severity="danger"
                   v-tooltip="'Delete'"
                   :disabled="!canDelete(slotProps.data)"
@@ -229,22 +229,22 @@ const filteredClaims = computed(() => {
     // Search filter
     if (filters.value.search) {
       const search = filters.value.search.toLowerCase()
-      if (!claim.title.toLowerCase().includes(search) && 
+      if (!claim.title.toLowerCase().includes(search) &&
           !claim.description.toLowerCase().includes(search)) {
         return false
       }
     }
-    
+
     // Status filter
     if (filters.value.status && claim.status !== filters.value.status) {
       return false
     }
-    
+
     // Type filter
     if (filters.value.type && claim.claim_type_id !== filters.value.type) {
       return false
     }
-    
+
     // Date range filter
     if (filters.value.dateFrom || filters.value.dateTo) {
       const claimDate = new Date(claim.created_at)
@@ -255,7 +255,7 @@ const filteredClaims = computed(() => {
         return false
       }
     }
-    
+
     return true
   })
 })
@@ -283,7 +283,7 @@ const formatDate = (date: string) => {
 }
 
 const formatStatus = (status: string) => {
-  return status.split('-').map(word => 
+  return status.split('-').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ')
 }
@@ -315,11 +315,11 @@ const loadClaims = async () => {
       claimsApi.getAll(),
       claimTypesApi.getAll()
     ])
-    
+
     if (claimsResponse.data.data) {
       claims.value = claimsResponse.data.data
     }
-    
+
     if (typesResponse.data.data) {
       claimTypes.value = typesResponse.data.data
     }
@@ -375,105 +375,137 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
+  animation: fadeIn var(--transition-slow) ease-out;
 }
 
 .filters-card {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
+  animation: slideIn var(--transition-slow) ease-out;
+  animation-delay: 100ms;
+  animation-fill-mode: both;
 }
 
 .filters-grid {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 2fr;
-  gap: 1.5rem;
+  gap: var(--space-6);
   align-items: end;
 }
 
 .filter-field {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .filter-label {
-  font-weight: 500;
-  color: var(--surface-700);
-  font-size: 0.875rem;
+  font-weight: var(--font-medium);
+  color: var(--surface-600);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .date-range {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
 }
 
 .date-separator {
-  color: var(--surface-500);
-  font-size: 0.875rem;
+  color: var(--surface-400);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  padding: 0 var(--space-1);
 }
 
 .table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--surface-100);
 }
 
 .table-title {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   display: flex;
   align-items: center;
+  color: var(--surface-700);
+  font-size: var(--text-base);
+}
+
+.table-title i {
+  color: var(--primary-500);
+  margin-right: var(--space-2);
 }
 
 .table-summary {
   color: var(--surface-600);
+  font-size: var(--text-sm);
 }
 
 .table-summary strong {
   color: var(--primary-600);
-  font-size: 1.125rem;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
 }
 
 .claim-link {
   color: var(--primary-600);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--font-medium);
+  transition: all var(--transition-fast) ease;
+  display: inline-block;
 }
 
 .claim-link:hover {
-  text-decoration: underline;
+  color: var(--primary-700);
+  transform: translateX(2px);
 }
 
 .amount {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--surface-900);
+  font-size: var(--text-base);
 }
 
 .action-buttons {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
+  opacity: 0.6;
+  transition: opacity var(--transition-fast) ease;
+}
+
+tr:hover .action-buttons {
+  opacity: 1;
 }
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: var(--space-16) var(--space-8);
 }
 
 .empty-icon {
   font-size: 4rem;
   color: var(--surface-300);
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
+  animation: scaleIn var(--transition-slow) ease-out;
 }
 
 .empty-state h3 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-2);
   color: var(--surface-700);
+  font-weight: var(--font-semibold);
 }
 
 .empty-state p {
   color: var(--surface-500);
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
+  font-size: var(--text-base);
 }
 
 .w-full {
@@ -481,7 +513,45 @@ onMounted(() => {
 }
 
 .font-mono {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-family-mono);
+  font-size: var(--text-sm);
+  color: var(--surface-600);
+  background: var(--surface-100);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+:deep(.p-datatable) {
+  animation: fadeIn var(--transition-slow) ease-out;
+  animation-delay: 200ms;
+  animation-fill-mode: both;
+}
+
+:deep(.p-dropdown-panel),
+:deep(.p-tooltip) {
+  animation: scaleIn var(--transition-fast) ease-out;
+}
+
+:deep(.p-input-icon-left > .pi) {
+  color: var(--surface-400);
+}
+
+:deep(.p-input-icon-left > input) {
+  padding-left: 2.5rem;
+}
+
+:deep(.p-button-text:not(:hover)) {
+  background: transparent;
+}
+
+:deep(.p-button-text:hover) {
+  background: var(--surface-100);
+}
+
+:deep(.p-column-header-content) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 @media (max-width: 1200px) {
@@ -494,17 +564,27 @@ onMounted(() => {
   .page-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: var(--space-4);
   }
-  
+
   .filters-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-4);
   }
-  
+
   .table-header {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-2);
     align-items: flex-start;
+  }
+
+  .date-range {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .date-separator {
+    display: none;
   }
 }
 </style>

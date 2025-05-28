@@ -30,25 +30,31 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* .main-content {
-  padding: 6rem 0rem;
-  min-height: 100vh;
-} */
-
 .main-content {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 3rem 0rem;
-  font-weight: normal;
+  flex: 1;
+  margin-top: 3rem;
+  min-height: calc(100vh - 72px);
+  background: var(--surface-50);
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: all var(--transition-slow) ease;
 }
 
-.fade-enter-from,
+.fade-enter-from {
+  opacity: 0;
+  /* transform: translateY(20px); */
+}
+
 .fade-leave-to {
   opacity: 0;
+  /* transform: translateY(-20px); */
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>

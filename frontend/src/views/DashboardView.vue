@@ -175,17 +175,17 @@
                 class="p-button-lg"
                 @click="showProfileDialog = true"
               />
+              <Panel header="Claim Guidelines" :toggleable="true">
+                <ul class="guidelines-list">
+                  <li>Submit claims within 30 days of expense</li>
+                  <li>Attach all required receipts and documentation</li>
+                  <li>Ensure claim amounts are accurate</li>
+                  <li>Select the appropriate claim type</li>
+                  <li>Provide clear descriptions for faster approval</li>
+                </ul>
+              </Panel>
             </div>
 
-            <Panel header="Claim Guidelines" :toggleable="true" class="mt-4">
-              <ul class="guidelines-list">
-                <li>Submit claims within 30 days of expense</li>
-                <li>Attach all required receipts and documentation</li>
-                <li>Ensure claim amounts are accurate</li>
-                <li>Select the appropriate claim type</li>
-                <li>Provide clear descriptions for faster approval</li>
-              </ul>
-            </Panel>
           </template>
         </Card>
       </div>
@@ -211,7 +211,7 @@
           <p><strong>Name:</strong> {{ authStore.user?.name }}</p>
           <p><strong>Email:</strong> {{ authStore.user?.email }}</p>
           <p><strong>Role:</strong> <Tag :value="authStore.user?.role" :severity="authStore.isAdmin ? 'success' : 'info'" /></p>
-          <p v-if="authStore.user?.group"><strong>Group:</strong> {{ authStore.user.group.name }}</p>
+          <p v-if="authStore.user?.user_group"><strong>Group:</strong> {{ authStore.user.user_group.name }}</p>
           <p><strong>Member Since:</strong> {{ formatDate(authStore.user?.created_at) }}</p>
         </div>
       </div>
@@ -311,28 +311,44 @@ onMounted(() => {
 <style scoped>
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
 }
+
+.stat-card {
+  animation: fadeIn var(--transition-slow) ease-out;
+  animation-fill-mode: both;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0ms; }
+.stat-card:nth-child(2) { animation-delay: 100ms; }
+.stat-card:nth-child(3) { animation-delay: 200ms; }
+.stat-card:nth-child(4) { animation-delay: 300ms; }
 
 .stat-content {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .stat-icon-container {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-xl);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all var(--transition-base) ease;
+}
+
+.stat-card:hover .stat-icon-container {
+  transform: scale(1.1) rotate(5deg);
 }
 
 .stat-icon {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  transition: transform var(--transition-base) ease;
 }
 
 .stat-details {
@@ -340,75 +356,128 @@ onMounted(() => {
 }
 
 .stat-label {
-  color: var(--surface-600);
-  font-size: 0.875rem;
+  color: var(--surface-500);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
   margin: 0;
 }
 
 .stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
   color: var(--surface-900);
-  margin: 0.25rem 0 0;
+  margin: var(--space-1) 0 0;
+  letter-spacing: -0.025em;
 }
 
 .dashboard-content {
   display: grid;
   grid-template-columns: 1fr 400px;
-  gap: 1.5rem;
+  gap: var(--space-6);
+}
+
+.recent-claims-card {
+  animation: slideIn var(--transition-slow) ease-out;
+  animation-delay: 400ms;
+  animation-fill-mode: both;
+}
+
+.quick-actions-card {
+  animation: slideIn var(--transition-slow) ease-out;
+  animation-delay: 500ms;
+  animation-fill-mode: both;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--surface-100);
 }
 
 .card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--surface-900);
   margin: 0;
 }
 
 .claim-link {
   color: var(--primary-600);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--font-medium);
+  transition: all var(--transition-fast) ease;
+  display: inline-block;
 }
 
 .claim-link:hover {
-  text-decoration: underline;
+  color: var(--primary-700);
+  transform: translateX(2px);
 }
 
 .empty-state {
   text-align: center;
-  padding: 3rem;
+  padding: var(--space-12);
 }
 
 .empty-icon {
-  font-size: 3rem;
-  color: var(--surface-400);
-  margin-bottom: 1rem;
+  font-size: 3.5rem;
+  color: var(--surface-300);
+  margin-bottom: var(--space-4);
+  animation: scaleIn var(--transition-slow) ease-out;
+}
+
+.empty-state p {
+  color: var(--surface-500);
+  margin-bottom: var(--space-6);
+  font-size: var(--text-base);
 }
 
 .quick-actions-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-3);
 }
 
 .p-button-lg {
   width: 100%;
-  padding: 0.75rem 1.25rem;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-base);
+  justify-content: center;
+  transition: all var(--transition-fast) ease;
+}
+
+.p-button-lg:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.p-button-lg .p-button-icon {
+  font-size: var(--text-lg);
 }
 
 .guidelines-list {
   margin: 0;
-  padding-left: 1.5rem;
+  padding-left: var(--space-6);
+  list-style: none;
 }
 
 .guidelines-list li {
-  margin-bottom: 0.5rem;
-  color: var(--surface-700);
+  margin-bottom: var(--space-3);
+  color: var(--surface-600);
+  position: relative;
+  padding-left: var(--space-6);
+  line-height: var(--leading-relaxed);
+}
+
+.guidelines-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--success-500);
+  font-weight: var(--font-semibold);
 }
 
 .profile-content {
@@ -416,26 +485,78 @@ onMounted(() => {
 }
 
 .profile-avatar {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .profile-info {
   text-align: left;
+  background: var(--surface-50);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--surface-100);
 }
 
 .profile-info p {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--surface-100);
+}
+
+.profile-info p:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.profile-info strong {
+  color: var(--surface-600);
+  font-weight: var(--font-medium);
+  font-size: var(--text-sm);
+}
+
+:deep(.p-panel) {
+  border: 1px solid var(--surface-200);
+  border-radius: var(--radius-lg);
+  background: var(--surface-50);
+}
+
+:deep(.p-panel-header) {
+  background: transparent;
+  border-bottom: 1px solid var(--surface-100);
+  padding: var(--space-3) var(--space-4);
+}
+
+:deep(.p-panel-content) {
+  padding: var(--space-4);
+}
+
+:deep(.p-tag) {
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-medium);
 }
 
 @media (max-width: 1200px) {
   .dashboard-content {
     grid-template-columns: 1fr;
   }
+
+  .quick-actions-card {
+    order: -1;
+  }
 }
 
 @media (max-width: 768px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid,
+  .dashboard-content {
+    gap: var(--space-4);
   }
 }
 </style>

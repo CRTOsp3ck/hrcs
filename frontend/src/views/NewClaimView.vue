@@ -1,6 +1,6 @@
 <template>
   <div class="page-container">
-    <Breadcrumb :model="breadcrumbItems" class="mb-4" />
+    <!-- <Breadcrumb :model="breadcrumbItems" class="mb-4" /> -->
 
     <Card>
       <template #header>
