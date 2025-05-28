@@ -150,7 +150,7 @@ const handleLogout = () => {
 
 .navbar-brand {
   display: flex;
-  padding: 0 1rem;
+  padding: 0 1.5rem;
   align-items: center;
   text-decoration: none;
   color: var(--primary-600);

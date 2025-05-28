@@ -1,148 +1,150 @@
 <template>
   <div class="page-container">
-    <!-- <Breadcrumb :model="breadcrumbItems" class="mb-4" /> -->
+    <Breadcrumb :model="breadcrumbItems" class="mb-4" />
 
-    <Card>
-      <template #header>
-        <h1 class="card-title">Create New Claim</h1>
-      </template>
+    <div class="claim-layout">
+      <Card class="claim-form-card">
+        <template #header>
+          <h1 class="card-title">Create New Claim</h1>
+        </template>
 
-      <template #content>
-        <form @submit.prevent="handleSubmit" class="claim-form">
-          <div class="form-grid">
-            <div class="form-field span-2">
-              <label for="title" class="form-label required">Claim Title</label>
-              <InputText
-                id="title"
-                v-model="form.title"
-                placeholder="e.g., Business Trip to New York"
-                :invalid="!!errors.title"
-                class="w-full"
-              />
-              <small v-if="errors.title" class="p-error">{{ errors.title }}</small>
-            </div>
+        <template #content>
+          <form @submit.prevent="handleSubmit" class="claim-form">
+            <div class="form-grid">
+              <div class="form-field span-2">
+                <label for="title" class="form-label required">Claim Title</label>
+                <InputText
+                  id="title"
+                  v-model="form.title"
+                  placeholder="e.g., Business Trip to New York"
+                  :invalid="!!errors.title"
+                  class="w-full"
+                />
+                <small v-if="errors.title" class="p-error">{{ errors.title }}</small>
+              </div>
 
-            <div class="form-field">
-              <label for="type" class="form-label required">Claim Type</label>
-              <Dropdown
-                id="type"
-                v-model="form.claim_type_id"
-                :options="claimTypes"
-                optionLabel="name"
-                optionValue="id"
-                placeholder="Select claim type"
-                :invalid="!!errors.claim_type_id"
-                class="w-full"
-              />
-              <small v-if="errors.claim_type_id" class="p-error">{{ errors.claim_type_id }}</small>
-            </div>
+              <div class="form-field">
+                <label for="type" class="form-label required">Claim Type</label>
+                <Dropdown
+                  id="type"
+                  v-model="form.claim_type_id"
+                  :options="claimTypes"
+                  optionLabel="name"
+                  optionValue="id"
+                  placeholder="Select claim type"
+                  :invalid="!!errors.claim_type_id"
+                  class="w-full"
+                />
+                <small v-if="errors.claim_type_id" class="p-error">{{ errors.claim_type_id }}</small>
+              </div>
 
-            <div class="form-field">
-              <label for="amount" class="form-label required">Amount ($)</label>
-              <InputNumber
-                id="amount"
-                v-model="form.amount"
-                mode="currency"
-                currency="USD"
-                locale="en-US"
-                :min="0"
-                :max="999999"
-                :invalid="!!errors.amount"
-                class="w-full"
-              />
-              <small v-if="errors.amount" class="p-error">{{ errors.amount }}</small>
-            </div>
+              <div class="form-field">
+                <label for="amount" class="form-label required">Amount ($)</label>
+                <InputNumber
+                  id="amount"
+                  v-model="form.amount"
+                  mode="currency"
+                  currency="USD"
+                  locale="en-US"
+                  :min="0"
+                  :max="999999"
+                  :invalid="!!errors.amount"
+                  class="w-full"
+                />
+                <small v-if="errors.amount" class="p-error">{{ errors.amount }}</small>
+              </div>
 
-            <div class="form-field span-2">
-              <label for="description" class="form-label required">Description</label>
-              <Textarea
-                id="description"
-                v-model="form.description"
-                rows="5"
-                placeholder="Provide detailed information about this claim..."
-                :invalid="!!errors.description"
-                class="w-full"
-              />
-              <small v-if="errors.description" class="p-error">{{ errors.description }}</small>
-              <small class="text-color-secondary">
-                {{ form.description.length }}/1000 characters
-              </small>
-            </div>
-
-            <div class="form-field span-2">
-              <label class="form-label">Attachments</label>
-              <div class="attachment-area">
-                <i class="pi pi-cloud-upload"></i>
-                <p>Drag and drop files here or click to browse</p>
+              <div class="form-field span-2">
+                <label for="description" class="form-label required">Description</label>
+                <Textarea
+                  id="description"
+                  v-model="form.description"
+                  rows="5"
+                  placeholder="Provide detailed information about this claim..."
+                  :invalid="!!errors.description"
+                  class="w-full"
+                />
+                <small v-if="errors.description" class="p-error">{{ errors.description }}</small>
                 <small class="text-color-secondary">
-                  Supported formats: PDF, JPG, PNG (Max 10MB)
+                  {{ form.description.length }}/1000 characters
                 </small>
               </div>
+
+              <div class="form-field span-2">
+                <label class="form-label">Attachments</label>
+                <div class="attachment-area">
+                  <i class="pi pi-cloud-upload"></i>
+                  <p>Drag and drop files here or click to browse</p>
+                  <small class="text-color-secondary">
+                    Supported formats: PDF, JPG, PNG (Max 10MB)
+                  </small>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <Divider />
+            <Divider />
 
-          <div class="form-actions">
-            <Button
-              label="Cancel"
-              severity="secondary"
-              outlined
-              @click="router.push('/claims')"
-            />
-            <div class="form-actions-right">
+            <div class="form-actions">
               <Button
-                label="Save as Draft"
-                icon="pi pi-save"
+                label="Cancel"
                 severity="secondary"
-                @click="saveDraft"
-                :loading="saving"
+                outlined
+                @click="router.push('/claims')"
               />
-              <Button
-                label="Submit Claim"
-                icon="pi pi-send"
-                type="submit"
-                :loading="submitting"
-              />
+              <div class="form-actions-right">
+                <Button
+                  label="Save as Draft"
+                  icon="pi pi-save"
+                  severity="secondary"
+                  @click="saveDraft"
+                  :loading="saving"
+                />
+                <Button
+                  label="Submit Claim"
+                  icon="pi pi-send"
+                  type="submit"
+                  :loading="submitting"
+                />
+              </div>
             </div>
-          </div>
-        </form>
-      </template>
-    </Card>
+          </form>
+        </template>
+      </Card>
 
-    <!-- Tips Panel -->
-    <Card class="tips-card">
-      <template #header>
-        <h3 class="tips-title">
-          <i class="pi pi-info-circle mr-2"></i>
-          Tips for Faster Approval
-        </h3>
-      </template>
-      <template #content>
-        <ul class="tips-list">
-          <li>
-            <i class="pi pi-check text-green-500 mr-2"></i>
-            Provide clear and descriptive titles
-          </li>
-          <li>
-            <i class="pi pi-check text-green-500 mr-2"></i>
-            Include all relevant receipts and documentation
-          </li>
-          <li>
-            <i class="pi pi-check text-green-500 mr-2"></i>
-            Ensure amounts match your receipts exactly
-          </li>
-          <li>
-            <i class="pi pi-check text-green-500 mr-2"></i>
-            Submit claims within 30 days of expense
-          </li>
-          <li>
-            <i class="pi pi-check text-green-500 mr-2"></i>
-            Select the most appropriate claim type
-          </li>
-        </ul>
-      </template>
-    </Card>
+      <!-- Tips Panel -->
+      <Card class="tips-card">
+        <template #header>
+          <h3 class="tips-title">
+            <i class="pi pi-info-circle mr-2"></i>
+            Tips for Faster Approval
+          </h3>
+        </template>
+        <template #content>
+          <ul class="tips-list">
+            <li>
+              <i class="pi pi-check text-green-500 mr-2"></i>
+              Provide clear and descriptive titles
+            </li>
+            <li>
+              <i class="pi pi-check text-green-500 mr-2"></i>
+              Include all relevant receipts and documentation
+            </li>
+            <li>
+              <i class="pi pi-check text-green-500 mr-2"></i>
+              Ensure amounts match your receipts exactly
+            </li>
+            <li>
+              <i class="pi pi-check text-green-500 mr-2"></i>
+              Submit claims within 30 days of expense
+            </li>
+            <li>
+              <i class="pi pi-check text-green-500 mr-2"></i>
+              Select the most appropriate claim type
+            </li>
+          </ul>
+        </template>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -303,6 +305,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.claim-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.claim-form-card {
+  flex: 1;
+}
+
 .card-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -310,7 +323,7 @@ onMounted(() => {
 }
 
 .claim-form {
-  max-width: 800px;
+  width: 100%;
 }
 
 .form-grid {
@@ -372,7 +385,8 @@ onMounted(() => {
 }
 
 .tips-card {
-  margin-top: 2rem;
+  position: sticky;
+  top: 2rem;
 }
 
 .tips-title {
@@ -393,7 +407,14 @@ onMounted(() => {
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--surface-100);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.tips-list li i {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 .tips-list li:last-child {
@@ -410,6 +431,23 @@ onMounted(() => {
 
 .text-color-secondary {
   color: var(--surface-500);
+}
+
+@media (max-width: 1200px) {
+  .claim-layout {
+    grid-template-columns: 1fr 280px;
+  }
+}
+
+@media (max-width: 992px) {
+  .claim-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tips-card {
+    position: static;
+    margin-top: 2rem;
+  }
 }
 
 @media (max-width: 768px) {

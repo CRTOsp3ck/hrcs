@@ -3,17 +3,17 @@
     <Card class="auth-card">
       <template #header>
         <div class="auth-header">
-          <i class="pi pi-building auth-logo"></i>
-          <h1 class="auth-title">HR Claims Management</h1>
+          <!-- <i class="pi pi-building auth-logo"></i> -->
+          <span class="auth-title">XR-Claimatix</span>
           <p class="auth-subtitle">Sign in to manage your claims</p>
         </div>
       </template>
-      
+
       <template #content>
         <form @submit.prevent="handleLogin" class="auth-form">
           <div class="form-field">
             <label for="email" class="form-label">Email Address</label>
-            <InputText 
+            <InputText
               id="email"
               v-model="form.email"
               type="email"
@@ -24,10 +24,10 @@
             />
             <small v-if="errors.email" class="p-error">{{ errors.email }}</small>
           </div>
-          
+
           <div class="form-field">
             <label for="password" class="form-label">Password</label>
-            <Password 
+            <Password
               id="password"
               v-model="form.password"
               placeholder="Enter your password"
@@ -39,12 +39,12 @@
             />
             <small v-if="errors.password" class="p-error">{{ errors.password }}</small>
           </div>
-          
+
           <Message v-if="error" severity="error" :closable="false" class="mb-3">
             {{ error }}
           </Message>
-          
-          <Button 
+
+          <Button
             type="submit"
             label="Sign In"
             icon="pi pi-sign-in"
@@ -53,13 +53,13 @@
             size="large"
           />
         </form>
-        
+
         <Divider align="center" class="my-4">
           <span class="text-sm text-color-secondary">New to the platform?</span>
         </Divider>
-        
+
         <router-link to="/register" class="no-underline">
-          <Button 
+          <Button
             label="Create Account"
             icon="pi pi-user-plus"
             severity="secondary"
@@ -68,7 +68,7 @@
             size="large"
           />
         </router-link>
-        
+
         <div class="demo-credentials">
           <Fieldset legend="Demo Credentials" :toggleable="true" :collapsed="true">
             <div class="demo-grid">
@@ -117,7 +117,7 @@ const validateForm = () => {
   let isValid = true
   errors.email = ''
   errors.password = ''
-  
+
   if (!form.email) {
     errors.email = 'Email is required'
     isValid = false
@@ -125,20 +125,20 @@ const validateForm = () => {
     errors.email = 'Invalid email format'
     isValid = false
   }
-  
+
   if (!form.password) {
     errors.password = 'Password is required'
     isValid = false
   }
-  
+
   return isValid
 }
 
 const handleLogin = async () => {
   if (!validateForm()) return
-  
+
   error.value = ''
-  
+
   try {
     await authStore.login(form)
     toast.add({
@@ -209,12 +209,24 @@ const handleLogin = async () => {
   animation: fadeIn var(--transition-slower) ease-out;
 }
 
-.auth-title {
+/* .auth-title {
   font-size: var(--text-2xl);
   font-weight: var(--font-bold);
   color: var(--surface-900);
   margin: 0 0 var(--space-2);
   letter-spacing: -0.025em;
+} */
+
+.auth-title {
+  /* display: flex; */
+  /* padding: 0 1.5rem; */
+  align-items: center;
+  text-decoration: none;
+  color: var(--primary-600);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  letter-spacing: -0.025em;
+  transition: color var(--transition-fast) ease;
 }
 
 .auth-subtitle {
@@ -319,11 +331,11 @@ const handleLogin = async () => {
   .auth-container {
     padding: var(--space-4);
   }
-  
+
   .auth-header {
     padding: var(--space-6) var(--space-6) 0;
   }
-  
+
   .demo-grid {
     grid-template-columns: 1fr;
     gap: var(--space-4);
