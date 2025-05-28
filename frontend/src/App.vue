@@ -32,7 +32,7 @@ onMounted(async () => {
 <style scoped>
 .main-content {
   flex: 1;
-  margin-top: 3rem;
+  margin-top: 3.5rem;
   min-height: calc(100vh - 72px);
   background: var(--surface-50);
 }
