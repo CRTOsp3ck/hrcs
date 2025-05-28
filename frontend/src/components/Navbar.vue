@@ -4,7 +4,7 @@
       <router-link to="/dashboard" class="navbar-brand">
         <!-- <i class="pi pi-building mr-2"></i> -->
         <span class="font-bold">XR-Claimatix</span>
-        <div class="mr-8"></div>
+        <!-- <div class="mr-8"></div> -->
       </router-link>
     </template>
 
@@ -150,6 +150,7 @@ const handleLogout = () => {
 
 .navbar-brand {
   display: flex;
+  padding: 0 1rem;
   align-items: center;
   text-decoration: none;
   color: var(--primary-600);
