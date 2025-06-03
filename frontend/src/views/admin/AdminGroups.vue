@@ -8,8 +8,10 @@
     <!-- Toolbar -->
     <div class="toolbar">
       <span class="p-input-icon-left">
-        <i class="pi pi-search" />
-        <InputText v-model="filters.global.value" placeholder="Search groups..." />
+        <IconField>
+          <InputIcon class="pi pi-search" />
+          <InputText v-model="filters.global.value" placeholder="Search groups..." />
+        </IconField>
       </span>
       <Button label="Add Group" icon="pi pi-plus" @click="showAddGroupDialog = true" />
     </div>
@@ -24,19 +26,19 @@
               <Tag :value="`${group.members.length} members`" severity="secondary" />
             </div>
             <div class="group-actions">
-              <Button 
-                icon="pi pi-pencil" 
-                severity="secondary" 
-                text 
-                rounded 
+              <Button
+                icon="pi pi-pencil"
+                severity="secondary"
+                text
+                rounded
                 @click="editGroup(group)"
                 v-tooltip="'Edit'"
               />
-              <Button 
-                icon="pi pi-trash" 
-                severity="danger" 
-                text 
-                rounded 
+              <Button
+                icon="pi pi-trash"
+                severity="danger"
+                text
+                rounded
                 @click="confirmDeleteGroup(group)"
                 v-tooltip="'Delete'"
               />
@@ -45,7 +47,7 @@
         </template>
         <template #content>
           <p class="group-description">{{ group.description }}</p>
-          
+
           <div class="group-details">
             <div class="detail-item">
               <span class="detail-label">Created:</span>
@@ -60,8 +62,8 @@
           <div class="permissions-section">
             <h4 class="permissions-title">Permissions</h4>
             <div class="permissions-list">
-              <Tag 
-                v-for="permission in group.permissions" 
+              <Tag
+                v-for="permission in group.permissions"
                 :key="permission"
                 :value="permission"
                 severity="info"
@@ -73,8 +75,8 @@
     </div>
 
     <!-- Add/Edit Group Dialog -->
-    <Dialog 
-      v-model:visible="showAddGroupDialog" 
+    <Dialog
+      v-model:visible="showAddGroupDialog"
       :header="editingGroup ? 'Edit Group' : 'Add New Group'"
       :style="{ width: '600px' }"
       modal
@@ -84,23 +86,23 @@
           <label for="name">Group Name</label>
           <InputText id="name" v-model="groupForm.name" class="w-full" />
         </div>
-        
+
         <div class="field">
           <label for="description">Description</label>
-          <Textarea 
-            id="description" 
-            v-model="groupForm.description" 
+          <Textarea
+            id="description"
+            v-model="groupForm.description"
             rows="3"
-            class="w-full" 
+            class="w-full"
           />
         </div>
-        
+
         <div class="field">
           <label for="department">Department</label>
-          <Dropdown 
-            id="department" 
-            v-model="groupForm.department" 
-            :options="departments" 
+          <Dropdown
+            id="department"
+            v-model="groupForm.department"
+            :options="departments"
             optionLabel="label"
             optionValue="value"
             placeholder="Select department (optional)"
@@ -108,13 +110,13 @@
             showClear
           />
         </div>
-        
+
         <div class="field">
           <label>Permissions</label>
           <div class="permissions-grid">
             <div v-for="permission in availablePermissions" :key="permission.value" class="permission-item">
-              <Checkbox 
-                v-model="groupForm.permissions" 
+              <Checkbox
+                v-model="groupForm.permissions"
                 :inputId="permission.value"
                 :value="permission.value"
               />
@@ -125,10 +127,10 @@
 
         <div class="field">
           <label for="members">Group Members</label>
-          <MultiSelect 
+          <MultiSelect
             id="members"
-            v-model="groupForm.members" 
-            :options="availableUsers" 
+            v-model="groupForm.members"
+            :options="availableUsers"
             optionLabel="name"
             optionValue="id"
             placeholder="Select members"
@@ -137,7 +139,7 @@
           />
         </div>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="closeGroupDialog" />
         <Button label="Save" @click="saveGroup" />
@@ -145,8 +147,8 @@
     </Dialog>
 
     <!-- Delete Confirmation -->
-    <Dialog 
-      v-model:visible="showDeleteDialog" 
+    <Dialog
+      v-model:visible="showDeleteDialog"
       header="Confirm Delete"
       :style="{ width: '400px' }"
       modal
@@ -156,7 +158,7 @@
         <p>Are you sure you want to delete group <strong>{{ groupToDelete?.name }}</strong>?</p>
         <p class="text-secondary">{{ groupToDelete?.members?.length || 0 }} users will be removed from this group.</p>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="showDeleteDialog = false" />
         <Button label="Delete" severity="danger" @click="deleteGroup" />
@@ -218,7 +220,7 @@ const filteredGroups = computed(() => {
   if (!filters.value.global.value) {
     return groups.value
   }
-  
+
   const searchTerm = filters.value.global.value.toLowerCase()
   return groups.value.filter((group: any) => {
     return group.name.toLowerCase().includes(searchTerm) ||
@@ -483,11 +485,11 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .groups-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .permissions-grid {
     grid-template-columns: 1fr;
   }

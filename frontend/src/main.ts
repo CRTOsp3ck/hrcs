@@ -22,6 +22,10 @@ import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import InputNumber from 'primevue/inputnumber'
+
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+
 import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import ToastService from 'primevue/toastservice'
@@ -105,6 +109,8 @@ app.component('Dialog', Dialog)
 app.component('Dropdown', Dropdown)
 app.component('Textarea', Textarea)
 app.component('InputNumber', InputNumber)
+app.component('InputIcon', InputIcon)
+app.component('IconField', IconField)
 app.component('Tag', Tag)
 app.component('Toast', Toast)
 app.component('ConfirmDialog', ConfirmDialog)

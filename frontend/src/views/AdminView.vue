@@ -3,12 +3,12 @@
     <div class="admin-sidebar">
       <div class="sidebar-header">
         <i class="pi pi-shield"></i>
-        <span>Admin Panel</span>
+        <span>Admin</span>
       </div>
-      
+
       <nav class="sidebar-nav">
-        <router-link 
-          v-for="item in menuItems" 
+        <router-link
+          v-for="item in menuItems"
           :key="item.route"
           :to="item.route"
           class="nav-item"
@@ -19,7 +19,7 @@
         </router-link>
       </nav>
     </div>
-    
+
     <div class="admin-content">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -72,14 +72,15 @@ const menuItems = [
 }
 
 .admin-sidebar {
-  width: 250px;
+  width: 240px;
   background: var(--surface-0);
   border-right: 1px solid var(--surface-200);
   flex-shrink: 0;
 }
 
 .sidebar-header {
-  padding: 1.5rem;
+  padding: 1rem 1rem;
+  margin-top: 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -135,25 +136,25 @@ const menuItems = [
   .admin-layout {
     flex-direction: column;
   }
-  
+
   .admin-sidebar {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--surface-200);
   }
-  
+
   .sidebar-nav {
     display: flex;
     overflow-x: auto;
     padding: 0;
   }
-  
+
   .nav-item {
     white-space: nowrap;
     border-left: none !important;
     border-bottom: 3px solid transparent;
   }
-  
+
   .nav-item.active {
     border-bottom-color: var(--primary-600);
   }

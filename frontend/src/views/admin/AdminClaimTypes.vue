@@ -8,20 +8,22 @@
     <!-- Toolbar -->
     <div class="toolbar">
       <span class="p-input-icon-left">
-        <i class="pi pi-search" />
-        <InputText v-model="filters.global.value" placeholder="Search claim types..." />
+        <IconField>
+          <InputIcon class="pi pi-search" />
+          <InputText v-model="filters.global.value" placeholder="Search claim types..." />
+        </IconField>
       </span>
       <Button label="Add Claim Type" icon="pi pi-plus" @click="showAddDialog = true" />
     </div>
 
     <!-- Claim Types Table -->
-    <DataTable 
-      :value="claimTypes" 
+    <DataTable
+      :value="claimTypes"
       :loading="loading"
       :filters="filters"
       filterDisplay="menu"
       :globalFilterFields="['name', 'code', 'category']"
-      paginator 
+      paginator
       :rows="10"
       :rowsPerPageOptions="[10, 20, 50]"
       responsiveLayout="scroll"
@@ -35,74 +37,76 @@
           </div>
         </template>
       </Column>
-      
+
       <Column field="code" header="Code" sortable>
         <template #body="slotProps">
           <Tag :value="slotProps.data.code" severity="secondary" />
         </template>
       </Column>
-      
+
       <Column field="category" header="Category" sortable>
         <template #body="slotProps">
           <Tag :value="slotProps.data.category" :severity="getCategorySeverity(slotProps.data.category)" />
         </template>
       </Column>
-      
+
       <Column field="maxAmount" header="Max Amount" sortable>
         <template #body="slotProps">
           <span class="amount">${{ formatAmount(slotProps.data.maxAmount) }}</span>
         </template>
       </Column>
-      
+
       <Column field="requiresReceipt" header="Receipt Required" sortable>
         <template #body="slotProps">
-          <i 
+          <i
             :class="slotProps.data.requiresReceipt ? 'pi pi-check-circle' : 'pi pi-times-circle'"
             :style="{ color: slotProps.data.requiresReceipt ? 'var(--green-500)' : 'var(--surface-400)' }"
           ></i>
         </template>
       </Column>
-      
-      <Column field="approvalLevels" header="Approval Levels" sortable>
+
+      <!-- <Column field="approvalLevels" header="Approval Levels" sortable>
         <template #body="slotProps">
           <span class="approval-levels">{{ slotProps.data.approvalLevels }}</span>
         </template>
-      </Column>
-      
+      </Column> -->
+
       <Column field="status" header="Status" sortable>
         <template #body="slotProps">
-          <InputSwitch 
-            v-model="slotProps.data.active" 
+          <InputSwitch
+            v-model="slotProps.data.active"
             @change="toggleStatus(slotProps.data)"
           />
         </template>
       </Column>
-      
+
       <Column header="Actions" :exportable="false" style="width: 120px">
         <template #body="slotProps">
-          <Button 
-            icon="pi pi-pencil" 
-            severity="secondary" 
-            text 
-            rounded 
-            @click="editClaimType(slotProps.data)"
-            v-tooltip="'Edit'"
-          />
-          <Button 
-            icon="pi pi-trash" 
-            severity="danger" 
-            text 
-            rounded 
-            @click="confirmDelete(slotProps.data)"
-            v-tooltip="'Delete'"
-          />
+          <div class="flex row">
+            <Button
+              icon="pi pi-pencil"
+              severity="secondary"
+              text
+              rounded
+              @click="editClaimType(slotProps.data)"
+              v-tooltip="'Edit'"
+            />
+            <Button
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              rounded
+              @click="confirmDelete(slotProps.data)"
+              v-tooltip="'Delete'"
+            />
+          </div>
         </template>
       </Column>
     </DataTable>
 
     <!-- Add/Edit Dialog -->
-    <Dialog 
-      v-model:visible="showAddDialog" 
+    <Dialog
+      v-model:visible="showAddDialog"
       :header="editingItem ? 'Edit Claim Type' : 'Add New Claim Type'"
       :style="{ width: '600px' }"
       modal
@@ -113,56 +117,56 @@
             <label for="name">Name</label>
             <InputText id="name" v-model="form.name" class="w-full" />
           </div>
-          
+
           <div class="field">
             <label for="code">Code</label>
             <InputText id="code" v-model="form.code" class="w-full" />
           </div>
         </div>
-        
+
         <div class="field">
           <label for="description">Description</label>
-          <Textarea 
-            id="description" 
-            v-model="form.description" 
+          <Textarea
+            id="description"
+            v-model="form.description"
             rows="3"
-            class="w-full" 
+            class="w-full"
           />
         </div>
-        
+
         <div class="form-row">
           <div class="field">
             <label for="category">Category</label>
-            <Dropdown 
-              id="category" 
-              v-model="form.category" 
-              :options="categories" 
+            <Dropdown
+              id="category"
+              v-model="form.category"
+              :options="categories"
               optionLabel="label"
               optionValue="value"
               placeholder="Select category"
-              class="w-full" 
+              class="w-full"
             />
           </div>
-          
+
           <div class="field">
             <label for="maxAmount">Maximum Amount</label>
-            <InputNumber 
-              id="maxAmount" 
-              v-model="form.maxAmount" 
-              mode="currency" 
+            <InputNumber
+              id="maxAmount"
+              v-model="form.maxAmount"
+              mode="currency"
               currency="USD"
-              class="w-full" 
+              class="w-full"
             />
           </div>
         </div>
-        
+
         <div class="form-row">
           <div class="field">
             <label for="icon">Icon</label>
-            <Dropdown 
-              id="icon" 
-              v-model="form.icon" 
-              :options="availableIcons" 
+            <Dropdown
+              id="icon"
+              v-model="form.icon"
+              :options="availableIcons"
               optionLabel="label"
               optionValue="value"
               placeholder="Select icon"
@@ -182,13 +186,13 @@
               </template>
             </Dropdown>
           </div>
-          
+
           <div class="field">
             <label for="color">Color</label>
             <ColorPicker id="color" v-model="form.color" />
           </div>
         </div>
-        
+
         <div class="field">
           <label>Requirements</label>
           <div class="requirements-grid">
@@ -206,31 +210,31 @@
             </div>
           </div>
         </div>
-        
+
         <div class="field">
           <label for="approvalLevels">Number of Approval Levels</label>
-          <InputNumber 
-            id="approvalLevels" 
-            v-model="form.approvalLevels" 
+          <InputNumber
+            id="approvalLevels"
+            v-model="form.approvalLevels"
             :min="0"
             :max="5"
             showButtons
-            class="w-full" 
+            class="w-full"
           />
         </div>
-        
+
         <div class="field">
           <label for="validityPeriod">Validity Period (days)</label>
-          <InputNumber 
-            id="validityPeriod" 
-            v-model="form.validityPeriod" 
+          <InputNumber
+            id="validityPeriod"
+            v-model="form.validityPeriod"
             :min="0"
             suffix=" days"
-            class="w-full" 
+            class="w-full"
           />
         </div>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="closeDialog" />
         <Button label="Save" @click="save" />
@@ -238,8 +242,8 @@
     </Dialog>
 
     <!-- Delete Confirmation -->
-    <Dialog 
-      v-model:visible="showDeleteDialog" 
+    <Dialog
+      v-model:visible="showDeleteDialog"
       header="Confirm Delete"
       :style="{ width: '400px' }"
       modal
@@ -249,7 +253,7 @@
         <p>Are you sure you want to delete claim type <strong>{{ itemToDelete?.name }}</strong>?</p>
         <p class="text-secondary">This action cannot be undone.</p>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="showDeleteDialog = false" />
         <Button label="Delete" severity="danger" @click="deleteItem" />
@@ -566,7 +570,7 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }

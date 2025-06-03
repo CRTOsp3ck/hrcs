@@ -5,9 +5,9 @@
         <h1 class="page-title">My Claims</h1>
         <p class="page-subtitle">Manage and track all your expense claims</p>
       </div>
-      <Button 
-        label="New Claim" 
-        icon="pi pi-plus" 
+      <Button
+        label="New Claim"
+        icon="pi pi-plus"
         @click="router.push('/claims/new')"
       />
     </div>
@@ -19,20 +19,22 @@
           <div class="filter-field">
             <label class="filter-label">Search</label>
             <span class="p-input-icon-left w-full">
-              <i class="pi pi-search" />
-              <InputText 
-                v-model="filters.search" 
-                placeholder="Search by title or description" 
-                class="w-full"
-              />
+              <IconField>
+                  <InputIcon class="pi pi-search" />
+                  <InputText
+                    v-model="filters.search"
+                    placeholder="Search by title or description"
+                    class="w-full"
+                  />
+              </IconField>
             </span>
           </div>
-          
+
           <div class="filter-field">
             <label class="filter-label">Status</label>
-            <Dropdown 
-              v-model="filters.status" 
-              :options="statusOptions" 
+            <Dropdown
+              v-model="filters.status"
+              :options="statusOptions"
               optionLabel="label"
               optionValue="value"
               placeholder="All Statuses"
@@ -40,12 +42,12 @@
               showClear
             />
           </div>
-          
+
           <div class="filter-field">
             <label class="filter-label">Type</label>
-            <Dropdown 
-              v-model="filters.type" 
-              :options="claimTypes" 
+            <Dropdown
+              v-model="filters.type"
+              :options="claimTypes"
               optionLabel="name"
               optionValue="id"
               placeholder="All Types"
@@ -53,18 +55,18 @@
               showClear
             />
           </div>
-          
+
           <div class="filter-field">
             <label class="filter-label">Date Range</label>
             <div class="date-range">
-              <InputText 
-                v-model="filters.dateFrom" 
+              <InputText
+                v-model="filters.dateFrom"
                 type="date"
                 class="w-full"
               />
               <span class="date-separator">to</span>
-              <InputText 
-                v-model="filters.dateTo" 
+              <InputText
+                v-model="filters.dateTo"
                 type="date"
                 class="w-full"
               />
@@ -77,8 +79,8 @@
     <!-- Claims Table -->
     <Card>
       <template #content>
-        <DataTable 
-          :value="filteredClaims" 
+        <DataTable
+          :value="filteredClaims"
           :loading="loading"
           paginator
           :rows="10"
@@ -104,22 +106,22 @@
               <i class="pi pi-inbox empty-icon"></i>
               <h3>No claims found</h3>
               <p>Start by creating your first claim</p>
-              <Button 
-                label="Create Claim" 
-                icon="pi pi-plus" 
+              <Button
+                label="Create Claim"
+                icon="pi pi-plus"
                 @click="router.push('/claims/new')"
               />
             </div>
           </template>
-          
+
           <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-          
+
           <Column field="id" header="ID" :sortable="true" style="width: 80px">
             <template #body="slotProps">
               <span class="font-mono">#{{ slotProps.data.id }}</span>
             </template>
           </Column>
-          
+
           <Column field="title" header="Title" :sortable="true">
             <template #body="slotProps">
               <router-link :to="`/claims/${slotProps.data.id}`" class="claim-link">
@@ -127,19 +129,19 @@
               </router-link>
             </template>
           </Column>
-          
+
           <Column field="claim_type.name" header="Type" :sortable="true" style="width: 150px">
             <template #body="slotProps">
               <Tag :value="slotProps.data.claim_type?.name" severity="info" />
             </template>
           </Column>
-          
+
           <Column field="amount" header="Amount" :sortable="true" style="width: 120px">
             <template #body="slotProps">
               <span class="amount">${{ formatAmount(slotProps.data.amount) }}</span>
             </template>
           </Column>
-          
+
           <Column field="status" header="Status" :sortable="true" style="width: 180px">
             <template #body="slotProps">
               <span :class="`status-badge status-${slotProps.data.status}`">
@@ -148,35 +150,35 @@
               </span>
             </template>
           </Column>
-          
+
           <Column field="created_at" header="Submitted" :sortable="true" style="width: 120px">
             <template #body="slotProps">
               {{ formatDate(slotProps.data.submitted_at || slotProps.data.created_at) }}
             </template>
           </Column>
-          
+
           <Column header="Actions" :exportable="false" style="width: 120px">
             <template #body="slotProps">
               <div class="action-buttons">
-                <Button 
-                  icon="pi pi-eye" 
-                  text 
-                  rounded 
+                <Button
+                  icon="pi pi-eye"
+                  text
+                  rounded
                   v-tooltip="'View'"
                   @click="router.push(`/claims/${slotProps.data.id}`)"
                 />
-                <Button 
-                  icon="pi pi-pencil" 
-                  text 
-                  rounded 
+                <Button
+                  icon="pi pi-pencil"
+                  text
+                  rounded
                   v-tooltip="'Edit'"
                   :disabled="!canEdit(slotProps.data)"
                   @click="router.push(`/claims/${slotProps.data.id}/edit`)"
                 />
-                <Button 
-                  icon="pi pi-trash" 
-                  text 
-                  rounded 
+                <Button
+                  icon="pi pi-trash"
+                  text
+                  rounded
                   severity="danger"
                   v-tooltip="'Delete'"
                   :disabled="!canDelete(slotProps.data)"
@@ -229,22 +231,22 @@ const filteredClaims = computed(() => {
     // Search filter
     if (filters.value.search) {
       const search = filters.value.search.toLowerCase()
-      if (!claim.title.toLowerCase().includes(search) && 
+      if (!claim.title.toLowerCase().includes(search) &&
           !claim.description.toLowerCase().includes(search)) {
         return false
       }
     }
-    
+
     // Status filter
     if (filters.value.status && claim.status !== filters.value.status) {
       return false
     }
-    
+
     // Type filter
     if (filters.value.type && claim.claim_type_id !== filters.value.type) {
       return false
     }
-    
+
     // Date range filter
     if (filters.value.dateFrom || filters.value.dateTo) {
       const claimDate = new Date(claim.created_at)
@@ -255,7 +257,7 @@ const filteredClaims = computed(() => {
         return false
       }
     }
-    
+
     return true
   })
 })
@@ -283,7 +285,7 @@ const formatDate = (date: string) => {
 }
 
 const formatStatus = (status: string) => {
-  return status.split('-').map(word => 
+  return status.split('-').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ')
 }
@@ -315,11 +317,11 @@ const loadClaims = async () => {
       claimsApi.getAll(),
       claimTypesApi.getAll()
     ])
-    
+
     if (claimsResponse.data.data) {
       claims.value = claimsResponse.data.data
     }
-    
+
     if (typesResponse.data.data) {
       claimTypes.value = typesResponse.data.data
     }
@@ -496,11 +498,11 @@ onMounted(() => {
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .filters-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .table-header {
     flex-direction: column;
     gap: 0.5rem;

@@ -20,7 +20,7 @@
           </div>
         </template>
       </Card>
-      
+
       <Card class="stat-card">
         <template #content>
           <div class="stat-content">
@@ -34,7 +34,7 @@
           </div>
         </template>
       </Card>
-      
+
       <Card class="stat-card">
         <template #content>
           <div class="stat-content">
@@ -48,7 +48,7 @@
           </div>
         </template>
       </Card>
-      
+
       <Card class="stat-card">
         <template #content>
           <div class="stat-content">
@@ -67,41 +67,41 @@
     <!-- Filters and Search -->
     <div class="filters-section">
       <div class="filters-row">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search" />
+        <IconField>
+          <InputIcon class="pi pi-search" />
           <InputText v-model="filters.search" placeholder="Search claims..." />
-        </span>
-        
-        <Dropdown 
-          v-model="filters.status" 
-          :options="statusOptions" 
+        </IconField>
+
+        <Dropdown
+          v-model="filters.status"
+          :options="statusOptions"
           optionLabel="label"
           optionValue="value"
           placeholder="All Statuses"
           showClear
         />
-        
-        <Dropdown 
-          v-model="filters.type" 
-          :options="typeOptions" 
+
+        <Dropdown
+          v-model="filters.type"
+          :options="typeOptions"
           optionLabel="label"
           optionValue="value"
           placeholder="All Types"
           showClear
         />
-        
-        <Calendar 
-          v-model="filters.dateRange" 
-          selectionMode="range" 
+
+        <Calendar
+          v-model="filters.dateRange"
+          selectionMode="range"
           dateFormat="mm/dd/yy"
           placeholder="Date Range"
           showIcon
           showClear
         />
-        
-        <Button 
-          label="Export" 
-          icon="pi pi-download" 
+
+        <Button
+          label="Export"
+          icon="pi pi-download"
           severity="secondary"
           @click="exportClaims"
         />
@@ -109,10 +109,10 @@
     </div>
 
     <!-- Claims Table -->
-    <DataTable 
-      :value="filteredClaims" 
+    <DataTable
+      :value="filteredClaims"
       :loading="loading"
-      paginator 
+      paginator
       :rows="10"
       :rowsPerPageOptions="[10, 20, 50]"
       responsiveLayout="scroll"
@@ -122,13 +122,13 @@
       :rowClass="getRowClass"
     >
       <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-      
-      <Column field="id" header="ID" sortable style="width: 80px">
+
+      <!-- <Column field="id" header="ID" sortable style="width: 80px">
         <template #body="slotProps">
           <span class="claim-id">#{{ slotProps.data.id }}</span>
         </template>
-      </Column>
-      
+      </Column> -->
+
       <Column field="employee" header="Employee" sortable>
         <template #body="slotProps">
           <div class="employee-info">
@@ -140,36 +140,36 @@
           </div>
         </template>
       </Column>
-      
-      <Column field="type" header="Type" sortable>
+
+      <!-- <Column field="type" header="Type" sortable>
         <template #body="slotProps">
           <Tag :value="slotProps.data.type" :severity="getTypeSeverity(slotProps.data.type)" />
         </template>
-      </Column>
-      
+      </Column> -->
+
       <Column field="amount" header="Amount" sortable>
         <template #body="slotProps">
           <span class="amount">${{ formatAmount(slotProps.data.amount) }}</span>
         </template>
       </Column>
-      
+
       <Column field="status" header="Status" sortable>
         <template #body="slotProps">
           <Tag :value="slotProps.data.status" :severity="getStatusSeverity(slotProps.data.status)" />
         </template>
       </Column>
-      
+
       <Column field="submittedDate" header="Submitted" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.submittedDate) }}
         </template>
       </Column>
-      
+
       <Column field="approvalProgress" header="Approval Progress">
         <template #body="slotProps">
           <div class="approval-progress">
-            <ProgressBar 
-              :value="getApprovalProgress(slotProps.data)" 
+            <ProgressBar
+              :value="getApprovalProgress(slotProps.data)"
               :showValue="false"
               style="height: 6px"
             />
@@ -179,14 +179,14 @@
           </div>
         </template>
       </Column>
-      
+
       <Column header="Review" :exportable="false" style="width: 120px">
         <template #body="slotProps">
           <div class="review-indicator">
-            <Tag 
+            <Tag
               v-if="slotProps.data.canApprove && slotProps.data.allowedStatuses?.length > 0"
-              value="Needs Review" 
-              severity="warning" 
+              value="Needs Review"
+              severity="warning"
               icon="pi pi-exclamation-triangle"
               class="review-tag"
             />
@@ -194,14 +194,14 @@
           </div>
         </template>
       </Column>
-      
+
       <Column header="Actions" :exportable="false" style="width: 80px">
         <template #body="slotProps">
-          <Button 
-            icon="pi pi-eye" 
-            severity="info" 
-            text 
-            rounded 
+          <Button
+            icon="pi pi-eye"
+            severity="info"
+            text
+            rounded
             @click="viewClaim(slotProps.data)"
             v-tooltip="'View Details'"
           />
@@ -213,21 +213,21 @@
     <div v-if="selectedClaims.length > 0" class="bulk-actions">
       <span class="selection-count">{{ selectedClaims.length }} claims selected</span>
       <div class="actions">
-        <Button 
-          label="Bulk Approve" 
-          icon="pi pi-check" 
+        <Button
+          label="Bulk Approve"
+          icon="pi pi-check"
           severity="success"
           @click="bulkApprove"
         />
-        <Button 
-          label="Bulk Reject" 
-          icon="pi pi-times" 
+        <Button
+          label="Bulk Reject"
+          icon="pi pi-times"
           severity="danger"
           @click="bulkReject"
         />
-        <Button 
-          label="Export Selected" 
-          icon="pi pi-download" 
+        <Button
+          label="Export Selected"
+          icon="pi pi-download"
           severity="secondary"
           @click="exportSelected"
         />
@@ -235,8 +235,8 @@
     </div>
 
     <!-- Claim Details Dialog -->
-    <Dialog 
-      v-model:visible="showDetailsDialog" 
+    <Dialog
+      v-model:visible="showDetailsDialog"
       header="Claim Details"
       :style="{ width: '800px' }"
       modal
@@ -271,12 +271,12 @@
             </div>
           </div>
         </div>
-        
+
         <div class="detail-section">
           <h3>Description</h3>
           <p>{{ selectedClaim.description }}</p>
         </div>
-        
+
         <div class="detail-section">
           <h3>Attachments</h3>
           <div class="attachments-list">
@@ -287,15 +287,15 @@
             </div>
           </div>
         </div>
-        
+
         <div class="detail-section">
           <h3>Approval Workflow</h3>
           <div v-if="selectedClaim.approvalWorkflow && selectedClaim.approvalWorkflow.length > 0" class="workflow-container">
             <div class="workflow-summary">
               <div class="summary-item">
                 <span class="summary-label">Progress:</span>
-                <ProgressBar 
-                  :value="getWorkflowProgress(selectedClaim)" 
+                <ProgressBar
+                  :value="getWorkflowProgress(selectedClaim)"
                   :showValue="false"
                   style="width: 200px; height: 8px;"
                 />
@@ -306,10 +306,10 @@
                 <span class="summary-value">{{ selectedClaim.currentStep.name }}</span>
               </div>
             </div>
-            
+
             <div class="workflow-steps">
-              <div 
-                v-for="(step, index) in selectedClaim.approvalWorkflow" 
+              <div
+                v-for="(step, index) in selectedClaim.approvalWorkflow"
                 :key="step.id"
                 class="workflow-step"
                 :class="getStepClass(step)"
@@ -322,14 +322,14 @@
                     <p class="step-group">Group: {{ step.userGroupName }}</p>
                   </div>
                   <div class="step-status">
-                    <Tag 
-                      :value="getStepStatusLabel(step.status)" 
+                    <Tag
+                      :value="getStepStatusLabel(step.status)"
                       :severity="getStepStatusSeverity(step.status)"
                       :icon="getStepStatusIcon(step.status)"
                     />
                   </div>
                 </div>
-                
+
                 <div v-if="step.completedAt || step.comments" class="step-details">
                   <div v-if="step.completedAt" class="step-date">
                     <i class="pi pi-calendar"></i>
@@ -340,7 +340,7 @@
                     <span>{{ step.comments }}</span>
                   </div>
                 </div>
-                
+
                 <div v-if="step.status === 'pending'" class="step-permissions">
                   <div class="permissions-title">Available Actions:</div>
                   <div class="permissions-list">
@@ -358,11 +358,11 @@
           </div>
         </div>
       </div>
-      
+
       <template #footer>
         <Button label="Close" severity="secondary" @click="showDetailsDialog = false" />
         <div v-if="selectedClaim && selectedClaim.canApprove && selectedClaim.allowedStatuses?.length > 0" class="status-update-section">
-          <Dropdown 
+          <Dropdown
             v-model="dialogSelectedStatus"
             :options="getStatusOptions(selectedClaim)"
             optionLabel="label"
@@ -370,9 +370,9 @@
             placeholder="Change Status"
             class="status-dropdown"
           />
-          <Button 
-            label="Update Status" 
-            icon="pi pi-check" 
+          <Button
+            label="Update Status"
+            icon="pi pi-check"
             severity="primary"
             @click="updateClaimStatusFromDialog"
             :disabled="!dialogSelectedStatus || dialogSelectedStatus === selectedClaim.status"
@@ -382,32 +382,32 @@
     </Dialog>
 
     <!-- Approve/Reject Dialog -->
-    <Dialog 
-      v-model:visible="showActionDialog" 
+    <Dialog
+      v-model:visible="showActionDialog"
       :header="actionType === 'approve' ? 'Approve Claim' : 'Reject Claim'"
       :style="{ width: '500px' }"
       modal
     >
       <div class="action-content">
         <p>
-          Are you sure you want to {{ actionType }} 
+          Are you sure you want to {{ actionType }}
           <strong>{{ actionClaim?.id ? `claim #${actionClaim.id}` : 'selected claims' }}</strong>?
         </p>
-        
+
         <div class="field">
           <label for="comments">Comments (optional)</label>
-          <Textarea 
-            id="comments" 
-            v-model="actionComments" 
+          <Textarea
+            id="comments"
+            v-model="actionComments"
             rows="4"
-            class="w-full" 
+            class="w-full"
           />
         </div>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="closeActionDialog" />
-        <Button 
+        <Button
           :label="actionType === 'approve' ? 'Approve' : 'Reject'"
           :severity="actionType === 'approve' ? 'success' : 'danger'"
           @click="performAction"
@@ -471,7 +471,7 @@ const filteredClaims = computed(() => {
 
   if (filters.value.search) {
     const search = filters.value.search.toLowerCase()
-    result = result.filter((claim: any) => 
+    result = result.filter((claim: any) =>
       claim.id.toString().includes(search) ||
       claim.employee.toLowerCase().includes(search) ||
       claim.description.toLowerCase().includes(search)
@@ -622,7 +622,7 @@ const getClaimStatus = (claim: any) => {
 
 const getStatusOptions = (claim: any) => {
   if (!claim.allowedStatuses) return []
-  
+
   const statusLabels: Record<string, string> = {
     'draft': 'Draft',
     'submitted': 'Submitted',
@@ -631,7 +631,7 @@ const getStatusOptions = (claim: any) => {
     'payment-in-progress': 'Payment in Progress',
     'paid': 'Paid'
   }
-  
+
   return claim.allowedStatuses.map((status: string) => ({
     label: statusLabels[status] || status,
     value: status
@@ -640,20 +640,20 @@ const getStatusOptions = (claim: any) => {
 
 const updateClaimStatus = async (claim: any, newStatus: string) => {
   if (newStatus === claim.status) return
-  
+
   try {
-    await adminApi.updateClaimStatus(claim.id, { 
+    await adminApi.updateClaimStatus(claim.id, {
       status: newStatus,
       comments: '' // TODO: Add comments dialog if needed
     })
-    
+
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: `Claim status updated to ${newStatus}`,
       life: 3000
     })
-    
+
     loadClaims()
   } catch (error) {
     toast.add({
@@ -667,20 +667,20 @@ const updateClaimStatus = async (claim: any, newStatus: string) => {
 
 const updateClaimStatusFromDialog = async () => {
   if (!selectedClaim.value || !dialogSelectedStatus.value) return
-  
+
   try {
-    await adminApi.updateClaimStatus(selectedClaim.value.id, { 
+    await adminApi.updateClaimStatus(selectedClaim.value.id, {
       status: dialogSelectedStatus.value,
       comments: ''
     })
-    
+
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: `Claim status updated to ${dialogSelectedStatus.value}`,
       life: 3000
     })
-    
+
     showDetailsDialog.value = false
     dialogSelectedStatus.value = ''
     loadClaims()
@@ -763,7 +763,7 @@ const bulkReject = () => {
 const performAction = async () => {
   try {
     const claimsToProcess = actionClaim.value ? [actionClaim.value] : selectedClaims.value
-    
+
     for (const claim of claimsToProcess) {
       if (actionType.value === 'approve') {
         await adminApi.approveClaim(claim.id, { comments: actionComments.value })
@@ -771,14 +771,14 @@ const performAction = async () => {
         await adminApi.rejectClaim(claim.id, { comments: actionComments.value })
       }
     }
-    
+
     toast.add({
       severity: 'success',
       summary: 'Success',
       detail: `${claimsToProcess.length} claim(s) ${actionType.value}d successfully`,
       life: 3000
     })
-    
+
     loadClaims()
     closeActionDialog()
     showDetailsDialog.value = false
@@ -1282,18 +1282,18 @@ onMounted(() => {
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .filters-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .bulk-actions {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .actions {
     flex-direction: column;
   }

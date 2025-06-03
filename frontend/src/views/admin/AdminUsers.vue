@@ -8,8 +8,10 @@
     <!-- Search and Actions Bar -->
     <div class="toolbar">
       <span class="p-input-icon-left">
-        <i class="pi pi-search" />
-        <InputText v-model="filters.global.value" placeholder="Search users..." />
+        <IconField>
+          <InputIcon class="pi pi-search" />
+          <InputText v-model="filters.global.value" placeholder="Search users..." />
+        </IconField>
       </span>
       <div class="toolbar-actions">
         <Button label="Export" icon="pi pi-download" severity="secondary" @click="exportUsers" />
@@ -18,13 +20,13 @@
     </div>
 
     <!-- Users Table -->
-    <DataTable 
-      :value="users" 
+    <DataTable
+      :value="users"
       :loading="loading"
       :filters="filters"
       filterDisplay="menu"
       :globalFilterFields="['name', 'email', 'role', 'department']"
-      paginator 
+      paginator
       :rows="10"
       :rowsPerPageOptions="[10, 20, 50]"
       responsiveLayout="scroll"
@@ -38,47 +40,47 @@
           </div>
         </template>
       </Column>
-      
+
       <Column field="email" header="Email" sortable />
-      
+
       <Column field="role" header="Role" sortable>
         <template #body="slotProps">
           <Tag :value="slotProps.data.role" :severity="getRoleSeverity(slotProps.data.role)" />
         </template>
       </Column>
-      
+
       <Column field="department" header="Department" sortable />
-      
+
       <Column field="status" header="Status" sortable>
         <template #body="slotProps">
-          <Tag 
-            :value="slotProps.data.status" 
-            :severity="slotProps.data.status === 'active' ? 'success' : 'danger'" 
+          <Tag
+            :value="slotProps.data.status"
+            :severity="slotProps.data.status === 'active' ? 'success' : 'danger'"
           />
         </template>
       </Column>
-      
+
       <Column field="createdAt" header="Created" sortable>
         <template #body="slotProps">
           {{ formatDate(slotProps.data.createdAt) }}
         </template>
       </Column>
-      
+
       <Column header="Actions" :exportable="false" style="width: 120px">
         <template #body="slotProps">
-          <Button 
-            icon="pi pi-pencil" 
-            severity="secondary" 
-            text 
-            rounded 
+          <Button
+            icon="pi pi-pencil"
+            severity="secondary"
+            text
+            rounded
             @click="editUser(slotProps.data)"
             v-tooltip="'Edit'"
           />
-          <Button 
-            icon="pi pi-trash" 
-            severity="danger" 
-            text 
-            rounded 
+          <Button
+            icon="pi pi-trash"
+            severity="danger"
+            text
+            rounded
             @click="confirmDeleteUser(slotProps.data)"
             v-tooltip="'Delete'"
           />
@@ -87,8 +89,8 @@
     </DataTable>
 
     <!-- Add/Edit User Dialog -->
-    <Dialog 
-      v-model:visible="showAddUserDialog" 
+    <Dialog
+      v-model:visible="showAddUserDialog"
       :header="editingUser ? 'Edit User' : 'Add New User'"
       :style="{ width: '500px' }"
       modal
@@ -98,44 +100,44 @@
           <label for="name">Full Name</label>
           <InputText id="name" v-model="userForm.name" class="w-full" />
         </div>
-        
+
         <div class="field">
           <label for="email">Email</label>
           <InputText id="email" v-model="userForm.email" type="email" class="w-full" />
         </div>
-        
+
         <div class="field">
           <label for="role">Role</label>
-          <Dropdown 
-            id="role" 
-            v-model="userForm.role" 
-            :options="roles" 
+          <Dropdown
+            id="role"
+            v-model="userForm.role"
+            :options="roles"
             optionLabel="label"
             optionValue="value"
             placeholder="Select a role"
-            class="w-full" 
+            class="w-full"
           />
         </div>
-        
+
         <div class="field">
           <label for="department">Department</label>
           <InputText id="department" v-model="userForm.department" class="w-full" />
         </div>
-        
+
         <div class="field">
           <label for="groups">Groups</label>
-          <MultiSelect 
+          <MultiSelect
             id="groups"
-            v-model="userForm.groups" 
-            :options="groups" 
+            v-model="userForm.groups"
+            :options="groups"
             optionLabel="name"
             optionValue="id"
             placeholder="Select groups"
-            class="w-full" 
+            class="w-full"
           />
         </div>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="closeUserDialog" />
         <Button label="Save" @click="saveUser" />
@@ -143,8 +145,8 @@
     </Dialog>
 
     <!-- Delete Confirmation -->
-    <Dialog 
-      v-model:visible="showDeleteDialog" 
+    <Dialog
+      v-model:visible="showDeleteDialog"
       header="Confirm Delete"
       :style="{ width: '400px' }"
       modal
@@ -154,7 +156,7 @@
         <p>Are you sure you want to delete user <strong>{{ userToDelete?.name }}</strong>?</p>
         <p class="text-secondary">This action cannot be undone.</p>
       </div>
-      
+
       <template #footer>
         <Button label="Cancel" severity="secondary" @click="showDeleteDialog = false" />
         <Button label="Delete" severity="danger" @click="deleteUser" />
@@ -404,7 +406,7 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .toolbar-actions {
     justify-content: flex-end;
   }
