@@ -2,11 +2,6 @@
   <div class="admin-layout">
     <!-- Admin Sidebar -->
     <nav class="admin-sidebar">
-      <div class="sidebar-header">
-        <i class="pi pi-shield admin-icon"></i>
-        <span class="admin-label">Administration</span>
-      </div>
-      
       <div class="nav-sections">
         <!-- Overview Section -->
         <div class="nav-section">
@@ -113,28 +108,7 @@ const pendingClaimsCount = ref(12)
   padding: var(--space-21);
   box-shadow: 0 var(--space-1) var(--space-8) rgba(0, 0, 0, 0.1);
   height: fit-content;
-  position: sticky;
-  top: var(--space-21); /* Position relative to the already reserved space */
-}
-
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  margin-bottom: var(--space-21);
-  padding-bottom: var(--space-13);
-  border-bottom: 1px solid var(--surface-200);
-}
-
-.admin-icon {
-  font-size: var(--text-lg);
-  color: var(--admin-primary);
-}
-
-.admin-label {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--surface-900);
+  position: static;
 }
 
 /* Navigation Sections */
@@ -225,11 +199,6 @@ const pendingClaimsCount = ref(12)
     order: 2;
     position: static;
     padding: var(--space-13);
-  }
-  
-  .sidebar-header {
-    margin-bottom: var(--space-13);
-    padding-bottom: var(--space-8);
   }
   
   .nav-sections {

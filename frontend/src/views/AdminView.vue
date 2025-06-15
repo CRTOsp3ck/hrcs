@@ -1,11 +1,6 @@
 <template>
   <div class="admin-layout">
     <div class="admin-sidebar">
-      <div class="sidebar-header">
-        <i class="pi pi-shield"></i>
-        <span>Admin</span>
-      </div>
-
       <nav class="sidebar-nav">
         <router-link
           v-for="item in menuItems"
@@ -78,24 +73,8 @@ const menuItems = [
   border-right: 1px solid var(--surface-200);
   flex-shrink: 0;
   position: sticky;
-  top: 0; /* Position relative to the already reserved space */
+  top: 108px; /* Account for navbar (60px) + admin context bar (48px) */
   height: fit-content;
-}
-
-.sidebar-header {
-  padding: 1rem 1rem;
-  margin-top: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--surface-900);
-  border-bottom: 1px solid var(--surface-200);
-}
-
-.sidebar-header i {
-  color: var(--primary-500);
 }
 
 .sidebar-nav {
