@@ -1,17 +1,10 @@
 <template>
-  <div class="claim-type-details-view">
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-900">
-          Claim Type Details: {{ claimTypeDetails?.claim_type?.name }}
-        </h1>
-        <nav class="breadcrumb mt-2">
-          <router-link to="/admin/claim-types" class="text-blue-600 hover:text-blue-800">Claim Types</router-link>
-          <span class="mx-2">/</span>
-          <span class="text-gray-500">{{ claimTypeDetails?.claim_type?.name }}</span>
-        </nav>
-      </div>
-      <div class="flex gap-3">
+  <div class="admin-page-container">
+    <PageHeader
+      :title="pageTitle"
+      :breadcrumbs="breadcrumbItems"
+    >
+      <template #actions>
         <Button 
           icon="pi pi-pencil" 
           label="Edit Claim Type" 
@@ -25,42 +18,42 @@
           @click="manageLimits"
           :loading="loading"
         />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
-    <div v-if="loading" class="flex justify-center items-center h-64">
+    <div v-if="loading" class="loading-container">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+    <div v-else-if="error" class="error-container">
       {{ error }}
     </div>
 
-    <div v-else-if="claimTypeDetails" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div v-else-if="claimTypeDetails" class="content-grid">
       <!-- Basic Information -->
       <Card class="col-span-full lg:col-span-1">
         <template #title>Basic Information</template>
         <template #content>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2" style="gap: var(--space-13);">
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Name:</label>
-              <p class="mt-1">{{ claimTypeDetails.claim_type.name }}</p>
+              <label>Name:</label>
+              <p>{{ claimTypeDetails.claim_type.name }}</p>
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Description:</label>
-              <p class="mt-1">{{ claimTypeDetails.claim_type.description || 'No description' }}</p>
+              <label>Description:</label>
+              <p>{{ claimTypeDetails.claim_type.description || 'No description' }}</p>
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Limit Amount:</label>
-              <p class="mt-1">${{ claimTypeDetails.claim_type.limit_amount?.toFixed(2) || '0.00' }}</p>
+              <label>Limit Amount:</label>
+              <p>${{ claimTypeDetails.claim_type.limit_amount?.toFixed(2) || '0.00' }}</p>
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Limit Timespan:</label>
-              <Tag :value="claimTypeDetails.claim_type.limit_timespan" severity="info" />
+              <label>Limit Timespan:</label>
+              <Tag :value="claimTypeDetails.claim_type.limit_timespan" severity="info" style="margin-top: var(--space-3);" />
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Created:</label>
-              <p class="mt-1">{{ formatDate(claimTypeDetails.claim_type.created_at) }}</p>
+              <label>Created:</label>
+              <p>{{ formatDate(claimTypeDetails.claim_type.created_at) }}</p>
             </div>
           </div>
         </template>
@@ -70,40 +63,48 @@
       <Card class="col-span-full lg:col-span-1">
         <template #title>Statistics</template>
         <template #content>
-          <div class="grid grid-cols-2 gap-4">
-            <div class="stat-card bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <div class="flex items-center">
-                <i class="pi pi-file text-blue-600 text-xl mr-3"></i>
-                <div>
-                  <p class="text-sm text-gray-600">Total Claims</p>
-                  <p class="text-2xl font-bold text-blue-900">{{ claimTypeDetails.stats.total_claims }}</p>
+          <div class="stats-grid">
+            <div class="metric-card">
+              <div class="metric-content">
+                <div class="metric-icon" style="background: rgba(59, 130, 246, 0.1);">
+                  <i class="pi pi-file" style="color: #3b82f6;"></i>
+                </div>
+                <div class="metric-details">
+                  <p class="metric-label">Total Claims</p>
+                  <p class="metric-value">{{ claimTypeDetails.stats.total_claims }}</p>
                 </div>
               </div>
             </div>
-            <div class="stat-card bg-green-50 border border-green-200 p-4 rounded-lg">
-              <div class="flex items-center">
-                <i class="pi pi-check text-green-600 text-xl mr-3"></i>
-                <div>
-                  <p class="text-sm text-gray-600">Approved Claims</p>
-                  <p class="text-2xl font-bold text-green-900">{{ claimTypeDetails.stats.approved_claims }}</p>
+            <div class="metric-card">
+              <div class="metric-content">
+                <div class="metric-icon" style="background: rgba(34, 197, 94, 0.1);">
+                  <i class="pi pi-check" style="color: #22c55e;"></i>
+                </div>
+                <div class="metric-details">
+                  <p class="metric-label">Approved Claims</p>
+                  <p class="metric-value">{{ claimTypeDetails.stats.approved_claims }}</p>
                 </div>
               </div>
             </div>
-            <div class="stat-card bg-purple-50 border border-purple-200 p-4 rounded-lg">
-              <div class="flex items-center">
-                <i class="pi pi-dollar text-purple-600 text-xl mr-3"></i>
-                <div>
-                  <p class="text-sm text-gray-600">Total Amount</p>
-                  <p class="text-2xl font-bold text-purple-900">${{ claimTypeDetails.stats.total_amount.toFixed(2) }}</p>
+            <div class="metric-card">
+              <div class="metric-content">
+                <div class="metric-icon" style="background: rgba(168, 85, 247, 0.1);">
+                  <i class="pi pi-dollar" style="color: #a855f7;"></i>
+                </div>
+                <div class="metric-details">
+                  <p class="metric-label">Total Amount</p>
+                  <p class="metric-value">${{ claimTypeDetails.stats.total_amount.toFixed(2) }}</p>
                 </div>
               </div>
             </div>
-            <div class="stat-card bg-orange-50 border border-orange-200 p-4 rounded-lg">
-              <div class="flex items-center">
-                <i class="pi pi-chart-bar text-orange-600 text-xl mr-3"></i>
-                <div>
-                  <p class="text-sm text-gray-600">Average Amount</p>
-                  <p class="text-2xl font-bold text-orange-900">${{ claimTypeDetails.stats.average_amount.toFixed(2) }}</p>
+            <div class="metric-card">
+              <div class="metric-content">
+                <div class="metric-icon" style="background: rgba(249, 115, 22, 0.1);">
+                  <i class="pi pi-chart-bar" style="color: #f97316;"></i>
+                </div>
+                <div class="metric-details">
+                  <p class="metric-label">Average Amount</p>
+                  <p class="metric-value">${{ claimTypeDetails.stats.average_amount.toFixed(2) }}</p>
                 </div>
               </div>
             </div>
@@ -115,7 +116,7 @@
       <Card class="col-span-full">
         <template #title>User Group Permissions</template>
         <template #content>
-          <div class="mb-4">
+          <div class="section-actions">
             <Button 
               icon="pi pi-plus" 
               label="Configure Permissions" 
@@ -164,7 +165,7 @@
               </template>
             </Column>
           </DataTable>
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="no-data-message">
             No group permissions configured
           </div>
         </template>
@@ -216,7 +217,7 @@
               </template>
             </Column>
           </DataTable>
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="no-data-message">
             No claims found
           </div>
         </template>
@@ -225,13 +226,13 @@
 
     <!-- Edit Claim Type Dialog -->
     <Dialog v-model:visible="showEditDialog" header="Edit Claim Type" modal class="w-full max-w-2xl">
-      <div class="grid grid-cols-1 gap-4 py-4">
+      <div class="grid grid-cols-1" style="gap: var(--space-13); padding: var(--space-13) 0;">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+          <label class="block" style="font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--surface-700); margin-bottom: var(--space-5);">Name</label>
           <InputText v-model="editForm.name" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <label class="block" style="font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--surface-700); margin-bottom: var(--space-5);">Description</label>
           <Textarea v-model="editForm.description" class="w-full" rows="3" />
         </div>
       </div>
@@ -243,9 +244,9 @@
 
     <!-- Manage Limits Dialog -->
     <Dialog v-model:visible="showLimitsDialog" header="Manage Claim Limits" modal class="w-full max-w-2xl">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+      <div class="grid grid-cols-1 md:grid-cols-2" style="gap: var(--space-13); padding: var(--space-13) 0;">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Limit Amount ($)</label>
+          <label class="block" style="font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--surface-700); margin-bottom: var(--space-5);">Limit Amount ($)</label>
           <InputNumber 
             v-model="limitsForm.limit_amount" 
             mode="currency" 
@@ -255,7 +256,7 @@
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Limit Timespan</label>
+          <label class="block" style="font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--surface-700); margin-bottom: var(--space-5);">Limit Timespan</label>
           <Dropdown 
             v-model="limitsForm.limit_timespan" 
             :options="timespanOptions" 
@@ -274,9 +275,9 @@
     <!-- Configure Permissions Dialog -->
     <Dialog v-model:visible="showPermissionsDialog" header="Configure Group Permissions" modal class="w-full max-w-4xl">
       <div class="py-4">
-        <p class="text-gray-600 mb-4">Configure which user groups can access this claim type:</p>
+        <p style="color: var(--surface-600); margin-bottom: var(--space-13);">Configure which user groups can access this claim type:</p>
         <!-- TODO: Implement permissions configuration interface -->
-        <div class="text-center py-8 text-gray-500">
+        <div class="no-data-message">
           Permissions configuration interface will be implemented here
         </div>
       </div>
@@ -288,7 +289,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { adminApi } from '@/api'
@@ -304,6 +305,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import InputNumber from 'primevue/inputnumber'
 import Dropdown from 'primevue/dropdown'
+import PageHeader from '@/components/base/PageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -333,6 +335,19 @@ const timespanOptions = [
   { label: 'Weekly', value: 'weekly' },
   { label: 'Daily', value: 'daily' }
 ]
+
+const pageTitle = computed(() => {
+  if (!claimTypeDetails.value?.claim_type) return 'Claim Type Details'
+  return `Claim Type Details: ${claimTypeDetails.value.claim_type.name}`
+})
+
+const breadcrumbItems = computed(() => {
+  const items: Array<{ label: string; to?: string }> = [{ label: 'Claim Types', to: '/admin/claim-types' }]
+  if (claimTypeDetails.value?.claim_type) {
+    items.push({ label: claimTypeDetails.value.claim_type.name })
+  }
+  return items
+})
 
 const fetchClaimTypeDetails = async () => {
   try {
@@ -464,27 +479,147 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.claim-type-details-view {
-  max-width: 80rem;
+.admin-page-container {
+  max-width: var(--container-lg);
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--space-21);
 }
 
 .breadcrumb {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .info-item {
-  background-color: #f9fafb;
-  padding: 0.75rem;
-  border-radius: 0.25rem;
+  background-color: var(--surface-50);
+  padding: var(--space-8);
+  border-radius: var(--space-5);
+  margin-bottom: var(--space-8);
+  transition: all var(--transition-fast) ease;
 }
 
-.stat-card {
-  transition: all 0.2s;
+.info-item:hover {
+  background-color: var(--surface-100);
 }
 
-.stat-card:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+.info-item label {
+  color: var(--surface-700);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+}
+
+.info-item p {
+  color: var(--surface-900);
+  margin-top: var(--space-3);
+}
+
+.metric-card {
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: var(--space-8);
+  padding: var(--space-13);
+  transition: all var(--transition-fast) ease;
+}
+
+.metric-card:hover {
+  border-color: var(--surface-300);
+  box-shadow: 0 var(--space-2) var(--space-8) rgba(0, 0, 0, 0.1);
+}
+
+.metric-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.metric-icon {
+  width: var(--space-34);
+  height: var(--space-34);
+  border-radius: var(--space-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg);
+}
+
+.metric-details {
+  flex: 1;
+}
+
+.metric-label {
+  font-size: var(--text-sm);
+  color: var(--surface-600);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.metric-value {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--surface-900);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.error-container {
+  background: var(--red-50);
+  border: 1px solid var(--red-200);
+  color: var(--red-700);
+  padding: var(--space-13);
+  border-radius: var(--space-8);
+  margin-bottom: var(--space-13);
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 16rem;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-21);
+}
+
+.content-grid .col-span-full {
+  grid-column: 1 / -1;
+}
+
+.no-data-message {
+  text-align: center;
+  padding: var(--space-34) 0;
+  color: var(--surface-500);
+}
+
+.section-actions {
+  margin-bottom: var(--space-13);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-13);
+}
+
+@media (max-width: var(--breakpoint-lg)) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-13);
+  }
+}
+
+@media (max-width: var(--breakpoint-md)) {
+  .admin-page-container {
+    padding: var(--space-13);
+  }
+  
+  .content-grid {
+    gap: var(--space-8);
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
 }
 </style>

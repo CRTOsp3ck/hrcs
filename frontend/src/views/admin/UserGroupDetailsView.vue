@@ -1,17 +1,10 @@
 <template>
-  <div class="user-group-details-view">
-    <div class="flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-900">
-          User Group Details: {{ groupDetails?.group?.name }}
-        </h1>
-        <nav class="breadcrumb mt-2">
-          <router-link to="/admin/groups" class="text-blue-600 hover:text-blue-800">Groups</router-link>
-          <span class="mx-2">/</span>
-          <span class="text-gray-500">{{ groupDetails?.group?.name }}</span>
-        </nav>
-      </div>
-      <div class="flex gap-3">
+  <div class="admin-page-container">
+    <PageHeader
+      :title="pageTitle"
+      :breadcrumbs="breadcrumbItems"
+    >
+      <template #actions>
         <Button 
           icon="pi pi-pencil" 
           label="Edit Group" 
@@ -25,38 +18,38 @@
           @click="manageMembers"
           :loading="loading"
         />
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
-    <div v-if="loading" class="flex justify-center items-center h-64">
+    <div v-if="loading" class="loading-container">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+    <div v-else-if="error" class="error-container">
       {{ error }}
     </div>
 
-    <div v-else-if="groupDetails" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div v-else-if="groupDetails" class="content-grid">
       <!-- Basic Information -->
       <Card class="col-span-full lg:col-span-1">
         <template #title>Basic Information</template>
         <template #content>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2" style="gap: var(--space-13);">
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Group Name:</label>
-              <p class="mt-1">{{ groupDetails.group.name }}</p>
+              <label>Group Name:</label>
+              <p>{{ groupDetails.group.name }}</p>
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Description:</label>
-              <p class="mt-1">{{ groupDetails.group.description || 'No description' }}</p>
+              <label>Description:</label>
+              <p>{{ groupDetails.group.description || 'No description' }}</p>
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Total Members:</label>
-              <p class="mt-1">{{ groupDetails.members?.length || 0 }}</p>
+              <label>Total Members:</label>
+              <p>{{ groupDetails.members?.length || 0 }}</p>
             </div>
             <div class="info-item">
-              <label class="font-semibold text-gray-700">Created:</label>
-              <p class="mt-1">{{ formatDate(groupDetails.group.created_at) }}</p>
+              <label>Created:</label>
+              <p>{{ formatDate(groupDetails.group.created_at) }}</p>
             </div>
           </div>
         </template>
@@ -98,7 +91,7 @@
               </template>
             </Column>
           </DataTable>
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="no-data-message">
             No members found
           </div>
         </template>
@@ -108,7 +101,7 @@
       <Card class="col-span-full">
         <template #title>Claim Type Permissions</template>
         <template #content>
-          <div class="mb-4">
+          <div class="section-actions">
             <Button 
               icon="pi pi-plus" 
               label="Manage Permissions" 
@@ -150,7 +143,7 @@
               </template>
             </Column>
           </DataTable>
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="no-data-message">
             No claim type permissions configured
           </div>
         </template>
@@ -160,7 +153,7 @@
       <Card class="col-span-full">
         <template #title>Approval Levels</template>
         <template #content>
-          <div class="mb-4">
+          <div class="section-actions">
             <Button 
               icon="pi pi-plus" 
               label="Add Approval Level" 
@@ -184,7 +177,7 @@
             </Column>
             <Column header="Permissions">
               <template #body="slotProps">
-                <div class="flex flex-wrap gap-1">
+                <div class="tag-container">
                   <Tag v-if="slotProps.data.can_approve" value="Approve" severity="success" />
                   <Tag v-if="slotProps.data.can_reject" value="Reject" severity="danger" />
                   <Tag v-if="slotProps.data.can_set_paid" value="Set Paid" severity="info" />
@@ -211,7 +204,7 @@
               </template>
             </Column>
           </DataTable>
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="no-data-message">
             No approval levels configured
           </div>
         </template>
@@ -220,13 +213,13 @@
 
     <!-- Edit Group Dialog -->
     <Dialog v-model:visible="showEditDialog" header="Edit Group" modal class="w-full max-w-2xl">
-      <div class="grid grid-cols-1 gap-4 py-4">
+      <div class="grid grid-cols-1" style="gap: var(--space-13); padding: var(--space-13) 0;">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
+          <label class="block" style="font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--surface-700); margin-bottom: var(--space-5);">Group Name</label>
           <InputText v-model="editForm.name" class="w-full" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <label class="block" style="font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--surface-700); margin-bottom: var(--space-5);">Description</label>
           <Textarea v-model="editForm.description" class="w-full" rows="3" />
         </div>
       </div>
@@ -239,9 +232,9 @@
     <!-- Manage Members Dialog -->
     <Dialog v-model:visible="showMembersDialog" header="Manage Members" modal class="w-full max-w-4xl">
       <div class="py-4">
-        <p class="text-gray-600 mb-4">Select users to add or remove from this group:</p>
+        <p style="color: var(--surface-600); margin-bottom: var(--space-13);">Select users to add or remove from this group:</p>
         <!-- TODO: Implement member management interface -->
-        <div class="text-center py-8 text-gray-500">
+        <div class="no-data-message">
           Member management interface will be implemented here
         </div>
       </div>
@@ -253,9 +246,9 @@
     <!-- Manage Permissions Dialog -->
     <Dialog v-model:visible="showPermissionsDialog" header="Manage Claim Type Permissions" modal class="w-full max-w-4xl">
       <div class="py-4">
-        <p class="text-gray-600 mb-4">Configure which claim types this group can access:</p>
+        <p style="color: var(--surface-600); margin-bottom: var(--space-13);">Configure which claim types this group can access:</p>
         <!-- TODO: Implement permissions management interface -->
-        <div class="text-center py-8 text-gray-500">
+        <div class="no-data-message">
           Permissions management interface will be implemented here
         </div>
       </div>
@@ -267,7 +260,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { adminApi } from '@/api'
@@ -281,6 +274,7 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import PageHeader from '@/components/base/PageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -297,6 +291,19 @@ const saving = ref(false)
 const editForm = ref({
   name: '',
   description: ''
+})
+
+const pageTitle = computed(() => {
+  if (!groupDetails.value?.group) return 'User Group Details'
+  return `User Group Details: ${groupDetails.value.group.name}`
+})
+
+const breadcrumbItems = computed(() => {
+  const items: Array<{ label: string; to?: string }> = [{ label: 'Groups', to: '/admin/groups' }]
+  if (groupDetails.value?.group) {
+    items.push({ label: groupDetails.value.group.name })
+  }
+  return items
 })
 
 const fetchGroupDetails = async () => {
@@ -408,19 +415,95 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.user-group-details-view {
-  max-width: 80rem;
+.admin-page-container {
+  max-width: var(--container-lg);
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--space-21);
 }
 
 .breadcrumb {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .info-item {
-  background-color: #f9fafb;
-  padding: 0.75rem;
-  border-radius: 0.25rem;
+  background-color: var(--surface-50);
+  padding: var(--space-8);
+  border-radius: var(--space-5);
+  margin-bottom: var(--space-8);
+  transition: all var(--transition-fast) ease;
+}
+
+.info-item:hover {
+  background-color: var(--surface-100);
+}
+
+.info-item label {
+  color: var(--surface-700);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+}
+
+.info-item p {
+  color: var(--surface-900);
+  margin-top: var(--space-3);
+}
+
+.error-container {
+  background: var(--red-50);
+  border: 1px solid var(--red-200);
+  color: var(--red-700);
+  padding: var(--space-13);
+  border-radius: var(--space-8);
+  margin-bottom: var(--space-13);
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 16rem;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-21);
+}
+
+.content-grid .col-span-full {
+  grid-column: 1 / -1;
+}
+
+.no-data-message {
+  text-align: center;
+  padding: var(--space-34) 0;
+  color: var(--surface-500);
+}
+
+.section-actions {
+  margin-bottom: var(--space-13);
+}
+
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+@media (max-width: var(--breakpoint-lg)) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-13);
+  }
+}
+
+@media (max-width: var(--breakpoint-md)) {
+  .admin-page-container {
+    padding: var(--space-13);
+  }
+  
+  .content-grid {
+    gap: var(--space-8);
+  }
 }
 </style>
