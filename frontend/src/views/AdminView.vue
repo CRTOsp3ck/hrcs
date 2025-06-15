@@ -68,7 +68,8 @@ const menuItems = [
 <style scoped>
 .admin-layout {
   display: flex;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 60px - 48px); /* Account for navbar + admin context bar */
+  padding-top: 0; /* No top padding - space already reserved */
 }
 
 .admin-sidebar {
@@ -76,6 +77,9 @@ const menuItems = [
   background: var(--surface-0);
   border-right: 1px solid var(--surface-200);
   flex-shrink: 0;
+  position: sticky;
+  top: 0; /* Position relative to the already reserved space */
+  height: fit-content;
 }
 
 .sidebar-header {

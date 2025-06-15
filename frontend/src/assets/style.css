@@ -172,7 +172,7 @@ body {
   --admin-primary-dark: #5b21b6;
 }
 
-.admin-mode .context-bar {
+.context-bar {
   background: linear-gradient(90deg, var(--admin-primary) 0%, var(--admin-primary-dark) 100%);
   color: white;
   padding: var(--space-5) var(--space-21);
@@ -183,7 +183,7 @@ body {
   font-size: var(--text-sm);
 }
 
-.admin-mode .context-indicator {
+.context-indicator {
   display: flex;
   align-items: center;
   gap: var(--space-5);
@@ -234,6 +234,11 @@ body {
   .page-container,
   .page-layout {
     padding: var(--space-8);
+    padding-top: var(--space-8); /* No additional top padding needed - space reserved by main-content */
+  }
+  
+  .admin-page-container {
+    padding: var(--space-8);
   }
   
   .admin-layout {
@@ -248,6 +253,11 @@ body {
 @media (min-width: var(--breakpoint-sm)) and (max-width: var(--breakpoint-md)) {
   .page-container,
   .page-layout {
+    padding: var(--space-13);
+    padding-top: var(--space-13); /* No additional top padding needed - space reserved by main-content */
+  }
+  
+  .admin-page-container {
     padding: var(--space-13);
   }
 }
@@ -354,6 +364,14 @@ body {
 /* Layout containers */
 .page-container {
   padding: var(--space-21);
+  padding-top: var(--space-21); /* No additional top padding needed - space reserved by main-content */
+  max-width: var(--container-lg);
+  margin: 0 auto;
+}
+
+/* Admin pages - no navbar padding since AdminView handles it */
+.admin-page-container {
+  padding: var(--space-21);
   max-width: var(--container-lg);
   margin: 0 auto;
 }
@@ -363,6 +381,7 @@ body {
   grid-template-rows: auto 1fr;
   min-height: 100vh;
   padding: var(--space-21);
+  padding-top: var(--space-21); /* No additional top padding needed - space reserved by main-content */
   max-width: var(--container-lg);
   margin: 0 auto;
 }

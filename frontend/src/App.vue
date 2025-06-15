@@ -68,12 +68,18 @@ onMounted(async () => {
 }
 
 .main-content {
-  min-height: calc(100vh - 60px); /* Account for navbar height */
+  min-height: calc(100vh - 60px - 48px); /* Always account for navbar + admin context bar space */
   background: linear-gradient(135deg, var(--surface-50) 0%, var(--surface-100) 100%);
+  padding-top: 48px; /* Always reserve space for admin context bar to prevent layout shift */
 }
 
-.admin-mode .main-content {
-  min-height: calc(100vh - 60px - 48px); /* Account for navbar + context bar */
+.context-bar {
+  position: fixed;
+  top: 60px; /* Below navbar */
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 48px;
 }
 
 .exit-admin-btn {

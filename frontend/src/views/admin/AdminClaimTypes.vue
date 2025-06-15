@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="admin-page-container">
     <div class="page-header">
       <h1 class="page-title">Claim Types</h1>
       <p class="page-subtitle">Configure available claim types and their settings</p>

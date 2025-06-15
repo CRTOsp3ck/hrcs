@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="admin-page-container">
     <div class="page-header">
       <h1 class="page-title">Approval Levels</h1>
       <p class="page-subtitle">Configure approval hierarchy and permissions for each user group</p>

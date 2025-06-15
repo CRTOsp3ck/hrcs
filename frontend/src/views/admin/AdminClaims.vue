@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="admin-page-container">
     <div class="page-header">
       <h1 class="page-title">Claims Management</h1>
       <p class="page-subtitle">Review and manage all system claims</p>

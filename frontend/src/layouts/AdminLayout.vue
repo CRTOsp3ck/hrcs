@@ -100,8 +100,8 @@ const pendingClaimsCount = ref(12)
   display: grid;
   grid-template-columns: var(--space-55) 1fr;
   gap: var(--space-21);
-  min-height: calc(100vh - 60px); /* Account for navbar */
-  padding: var(--space-21);
+  min-height: calc(100vh - 60px - 48px); /* Account for navbar + admin context bar */
+  padding: 0 var(--space-21) var(--space-21) var(--space-21); /* No top padding - space already reserved */
   max-width: var(--container-xl);
   margin: 0 auto;
 }
@@ -114,7 +114,7 @@ const pendingClaimsCount = ref(12)
   box-shadow: 0 var(--space-1) var(--space-8) rgba(0, 0, 0, 0.1);
   height: fit-content;
   position: sticky;
-  top: calc(60px + var(--space-21)); /* Navbar height + padding */
+  top: var(--space-21); /* Position relative to the already reserved space */
 }
 
 .sidebar-header {
@@ -218,7 +218,7 @@ const pendingClaimsCount = ref(12)
   .admin-layout {
     grid-template-columns: 1fr;
     gap: var(--space-13);
-    padding: var(--space-13);
+    padding: 0 var(--space-13) var(--space-13) var(--space-13); /* No top padding - space already reserved */
   }
   
   .admin-sidebar {
@@ -243,7 +243,7 @@ const pendingClaimsCount = ref(12)
 
 @media (max-width: var(--breakpoint-sm)) {
   .admin-layout {
-    padding: var(--space-8);
+    padding: 0 var(--space-8) var(--space-8) var(--space-8); /* No top padding - space already reserved */
     gap: var(--space-8);
   }
   
