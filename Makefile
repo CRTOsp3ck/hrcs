@@ -60,11 +60,11 @@ build:
 # Docker commands
 docker-up:
 	@echo "🐳 Starting PostgreSQL..."
-	@docker-compose up -d postgres
+	@docker compose up -d postgres
 
 docker-down:
 	@echo "🐳 Stopping Docker services..."
-	@docker-compose down
+	@docker compose down
 
 # Clean
 clean:
