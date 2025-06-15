@@ -82,7 +82,8 @@ app.use(PrimeVue, {
     preset: MyPreset,
     options: {
             prefix: 'p',
-            darkModeSelector: 'system',
+            darkModeSelector: 'hrcs-dark',
+            // darkModeSelector: 'system',
             cssLayer: false
         }
     // options: {
