@@ -8,7 +8,7 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  
+
   /* Fibonacci Spacing Scale */
   --space-1: 0.125rem;    /* 2px */
   --space-2: 0.1875rem;   /* 3px */
@@ -19,7 +19,7 @@
   --space-21: 2.125rem;   /* 34px */
   --space-34: 3.4375rem;  /* 55px */
   --space-55: 5.5rem;     /* 89px */
-  
+
   /* Fibonacci Typography Scale */
   --text-xs: 0.6875rem;   /* 11px */
   --text-sm: 0.8125rem;   /* 13px */
@@ -28,7 +28,7 @@
   --text-xl: 2.125rem;    /* 34px */
   --text-2xl: 3.4375rem;  /* 55px */
   --text-3xl: 5.5625rem;  /* 89px */
-  
+
   /* Font Weights */
   --font-light: 300;
   --font-normal: 400;
@@ -36,24 +36,24 @@
   --font-semibold: 600;
   --font-bold: 700;
   --font-extrabold: 800;
-  
+
   /* Fibonacci Container Widths */
   --container-sm: 34rem;    /* 544px */
   --container-md: 55rem;    /* 880px */
   --container-lg: 89rem;    /* 1424px */
   --container-xl: 144rem;   /* 2304px */
-  
+
   /* Fibonacci Breakpoints */
   --breakpoint-sm: 34rem;    /* 544px */
   --breakpoint-md: 55rem;    /* 880px */
   --breakpoint-lg: 89rem;    /* 1424px */
   --breakpoint-xl: 144rem;   /* 2304px */
-  
+
   /* Fibonacci-based Transitions */
   --transition-fast: 0.13s;
   --transition-normal: 0.21s;
   --transition-slow: 0.34s;
-  
+
   /* Primary Colors - Blue Theme (Preserved) */
   --primary-50: #eff6ff;
   --primary-100: #dbeafe;
@@ -74,7 +74,7 @@
   --surface-700: #334155;
   --surface-800: #1e293b;
   --surface-900: #0f172a;
-  
+
   /* Admin Theme Override */
   --admin-primary: #7c3aed;
   --admin-primary-light: #c4b5fd;
@@ -230,21 +230,21 @@ body {
   .hide-mobile {
     display: none !important;
   }
-  
+
   .page-container,
   .page-layout {
     padding: var(--space-8);
     padding-top: var(--space-8); /* No additional top padding needed - space reserved by main-content */
   }
-  
+
   .admin-page-container {
     padding: var(--space-8);
   }
-  
+
   .admin-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .admin-sidebar {
     order: 2;
   }
@@ -256,7 +256,7 @@ body {
     padding: var(--space-13);
     padding-top: var(--space-13); /* No additional top padding needed - space reserved by main-content */
   }
-  
+
   .admin-page-container {
     padding: var(--space-13);
   }

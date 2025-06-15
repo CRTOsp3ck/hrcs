@@ -6,10 +6,10 @@
       <div class="navbar-brand">
         <router-link to="/dashboard" class="brand-link">
           <i class="pi pi-building brand-icon"></i>
-          <span class="brand-text">XR-Claimatix</span>
+          <span class="brand-text">Claimatic</span>
         </router-link>
       </div>
-      
+
       <!-- Navigation Menu (Hidden on Admin Routes) -->
       <ul v-if="!isAdminRoute" class="nav-menu">
         <li class="nav-item">
@@ -39,45 +39,23 @@
             </li>
           </ul>
         </li>
-        <li v-if="authStore.isAdmin" class="nav-item nav-dropdown">
-          <div class="nav-link dropdown-trigger" @click="toggleAdminDropdown">
-            <i class="pi pi-cog"></i>
-            <span class="hide-mobile">Admin</span>
-            <i class="pi pi-chevron-down dropdown-icon" :class="{ 'rotated': showAdminDropdown }"></i>
-          </div>
-          <ul v-if="showAdminDropdown" class="dropdown-menu">
-            <li>
-              <router-link to="/admin/dashboard" class="dropdown-link" @click="closeDropdowns">
-                <i class="pi pi-chart-bar"></i>
-                Dashboard
-              </router-link>
-            </li>
-            <li class="dropdown-separator"></li>
-            <li>
-              <router-link to="/admin/users" class="dropdown-link" @click="closeDropdowns">
-                <i class="pi pi-users"></i>
-                Users
-              </router-link>
-            </li>
-            <li>
-              <router-link to="/admin/groups" class="dropdown-link" @click="closeDropdowns">
-                <i class="pi pi-sitemap"></i>
-                Groups
-              </router-link>
-            </li>
-            <li class="dropdown-separator"></li>
-            <li>
-              <router-link to="/admin/claims" class="dropdown-link" @click="closeDropdowns">
-                <i class="pi pi-file-o"></i>
-                All Claims
-              </router-link>
-            </li>
-          </ul>
-        </li>
       </ul>
-      
-      <!-- User Profile Section -->
-      <div class="user-profile">
+
+      <!-- Right Section: Admin Button + User Profile -->
+      <div class="navbar-right">
+        <!-- Admin Button -->
+        <Button
+          v-if="authStore.isAdmin && !isAdminRoute"
+          @click="goToAdmin"
+          size="small"
+          class="admin-button"
+        >
+          <i class="pi pi-shield"></i>
+          <span class="hide-mobile">Admin Mode</span>
+        </Button>
+
+        <!-- User Profile Section -->
+        <div class="user-profile">
         <div class="user-avatar">
           <Avatar
             :label="userInitials"
@@ -102,6 +80,7 @@
           />
         </div>
       </div>
+      </div>
     </nav>
   </header>
 </template>
@@ -121,7 +100,6 @@ const confirm = useConfirm()
 
 // Dropdown state
 const showClaimsDropdown = ref(false)
-const showAdminDropdown = ref(false)
 
 // Admin route detection
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
@@ -134,17 +112,14 @@ const userInitials = computed(() => {
 // Dropdown handlers
 const toggleClaimsDropdown = () => {
   showClaimsDropdown.value = !showClaimsDropdown.value
-  showAdminDropdown.value = false
-}
-
-const toggleAdminDropdown = () => {
-  showAdminDropdown.value = !showAdminDropdown.value 
-  showClaimsDropdown.value = false
 }
 
 const closeDropdowns = () => {
   showClaimsDropdown.value = false
-  showAdminDropdown.value = false
+}
+
+const goToAdmin = () => {
+  router.push('/admin/dashboard')
 }
 
 // Close dropdowns when clicking outside
@@ -193,17 +168,18 @@ onUnmounted(() => {
 .navbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: var(--space-8) var(--space-21);
   max-width: var(--container-xl);
   margin: 0 auto;
   height: 60px;
+  position: relative;
 }
 
 /* Brand Section */
 .navbar-brand {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .brand-link {
@@ -237,6 +213,9 @@ onUnmounted(() => {
   margin: 0;
   padding: 0;
   gap: var(--space-8);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .nav-item {
@@ -322,6 +301,33 @@ onUnmounted(() => {
   margin: var(--space-3) 0;
 }
 
+/* Admin Button Special Styling */
+.admin-button {
+  gap: var(--space-2) !important;
+  font-weight: var(--font-medium) !important;
+  background: var(--primary-600) !important;
+  color: white !important;
+  border: 1px solid var(--primary-600) !important;
+  border-radius: var(--space-5) !important;
+  padding: var(--space-3) var(--space-8) !important;
+  transition: all var(--transition-fast) ease !important;
+}
+
+.admin-button:hover {
+  background: var(--primary-700) !important;
+  border-color: var(--primary-700) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Right Section */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-21);
+  margin-left: auto;
+}
+
 /* User Profile */
 .user-profile {
   display: flex;
@@ -369,23 +375,23 @@ onUnmounted(() => {
   .navbar {
     padding: var(--space-5) var(--space-8);
   }
-  
+
   .nav-menu {
     gap: var(--space-3);
   }
-  
+
   .nav-link {
     padding: var(--space-3) var(--space-5);
   }
-  
+
   .brand-text {
     font-size: var(--text-base);
   }
-  
+
   .user-profile {
     gap: var(--space-5);
   }
-  
+
   .dropdown-menu {
     right: 0;
     left: auto;
@@ -397,7 +403,7 @@ onUnmounted(() => {
   .nav-menu {
     display: none;
   }
-  
+
   .navbar {
     justify-content: space-between;
   }
