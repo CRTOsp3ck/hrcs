@@ -71,14 +71,29 @@ const router = createRouter({
           component: () => import('@/views/admin/AdminUsers.vue')
         },
         {
+          path: 'users/:id',
+          name: 'admin-user-details',
+          component: () => import('@/views/admin/UserDetailsView.vue')
+        },
+        {
           path: 'groups',
           name: 'admin-groups',
           component: () => import('@/views/admin/AdminGroups.vue')
         },
         {
+          path: 'groups/:id',
+          name: 'admin-group-details',
+          component: () => import('@/views/admin/UserGroupDetailsView.vue')
+        },
+        {
           path: 'claim-types',
           name: 'admin-claim-types',
           component: () => import('@/views/admin/AdminClaimTypes.vue')
+        },
+        {
+          path: 'claim-types/:id',
+          name: 'admin-claim-type-details',
+          component: () => import('@/views/admin/ClaimTypeDetailsView.vue')
         },
         {
           path: 'approval-levels',

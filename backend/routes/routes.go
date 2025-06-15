@@ -17,6 +17,7 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 	adminHandler := handlers.NewAdminHandler(db)
 	adminEnhanced := handlers.NewAdminEnhancedHandler(db)
 	dashboardHandler := handlers.NewDashboardHandler(db)
+	balanceHandler := handlers.NewBalanceHandler(db)
 
 	authMiddleware := middleware.AuthMiddleware(db, cfg.JWTSecret)
 
@@ -42,6 +43,13 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 
 			// Claim types for regular users (read-only)
 			r.Get("/claim-types", claimHandler.GetClaimTypes)
+
+			// Balance routes for regular users
+			r.Route("/balances", func(r chi.Router) {
+				r.Get("/", balanceHandler.GetUserBalances)
+				r.Get("/claim-type/{id}", balanceHandler.GetUserBalance)
+				r.Post("/check", balanceHandler.CheckClaimAmount)
+			})
 
 			r.Route("/claims", func(r chi.Router) {
 				r.Get("/", claimHandler.GetClaims)
@@ -74,6 +82,11 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 						r.Post("/", adminEnhanced.CreateAdminUser)
 						r.Put("/{id}", adminEnhanced.UpdateAdminUser)
 						r.Delete("/{id}", adminEnhanced.DeleteAdminUser)
+						// NEW: User claim overrides and balance details
+						r.Post("/{id}/claim-overrides", adminHandler.SetUserClaimOverrides)
+						r.Get("/{id}/balance-details", balanceHandler.GetUserBalanceDetails)
+						// NEW: User detail view
+						r.Get("/{id}/details", adminHandler.GetUserDetails)
 					})
 
 					// Groups management
@@ -82,6 +95,10 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 						r.Post("/", adminEnhanced.CreateEnhancedGroup)
 						r.Put("/{id}", adminEnhanced.UpdateEnhancedGroup)
 						r.Delete("/{id}", adminEnhanced.DeleteEnhancedGroup)
+						// NEW: Group claim permissions
+						r.Post("/{id}/claim-permissions", adminHandler.SetUserGroupClaimPermissions)
+						// NEW: Group detail view
+						r.Get("/{id}/details", adminHandler.GetUserGroupDetails)
 					})
 
 					// Claim Types management
@@ -90,6 +107,10 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 						r.Post("/", adminEnhanced.CreateEnhancedClaimType)
 						r.Put("/{id}", adminEnhanced.UpdateEnhancedClaimType)
 						r.Delete("/{id}", adminHandler.DeleteClaimType)
+						// NEW: Claim type limits
+						r.Put("/{id}/limits", adminHandler.UpdateClaimTypeWithLimits)
+						// NEW: Claim type detail view
+						r.Get("/{id}/details", adminHandler.GetClaimTypeDetails)
 					})
 
 					// Approval Levels management
@@ -100,6 +121,11 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 						r.Put("/{id}", adminEnhanced.UpdateEnhancedApprovalLevel)
 						r.Delete("/{id}", adminEnhanced.DeleteEnhancedApprovalLevel)
 						r.Put("/order", adminEnhanced.UpdateApprovalLevelOrder)
+					})
+
+					// NEW: Balance management
+					r.Route("/balances", func(r chi.Router) {
+						r.Post("/adjust", balanceHandler.AdminUpdateBalance)
 					})
 				})
 

@@ -27,6 +27,14 @@
             </div>
             <div class="group-actions">
               <Button
+                icon="pi pi-eye"
+                severity="info"
+                text
+                rounded
+                @click="viewGroupDetails(group)"
+                v-tooltip="'View Details'"
+              />
+              <Button
                 icon="pi pi-pencil"
                 severity="secondary"
                 text
@@ -169,11 +177,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { FilterMatchMode } from '@primevue/core/api'
 import { useToast } from 'primevue/usetoast'
 import { adminApi } from '@/api'
 
 const toast = useToast()
+const router = useRouter()
 
 const loading = ref(false)
 const groups = ref([])
@@ -261,6 +271,10 @@ const loadUsers = async () => {
   } catch (error) {
     console.error('Failed to load users:', error)
   }
+}
+
+const viewGroupDetails = (group: any) => {
+  router.push(`/admin/groups/${group.id}`)
 }
 
 const editGroup = (group: any) => {

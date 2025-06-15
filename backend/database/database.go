@@ -24,5 +24,10 @@ func Migrate(db *gorm.DB) error {
 		&models.Claim{},
 		&models.ApprovalLevel{},
 		&models.ClaimApproval{},
+		
+		// NEW MODELS FOR CLAIMS, BALANCES & DETAILS VIEWS
+		&models.UserGroupClaimType{},
+		&models.UserClaimType{},
+		&models.UserClaimBalance{},
 	)
 }

@@ -17,10 +17,24 @@ const (
 	StatusPaid               ClaimStatus = "paid"
 )
 
+type LimitTimespan string
+
+const (
+	LimitAnnual  LimitTimespan = "annual"
+	LimitMonthly LimitTimespan = "monthly"
+	LimitWeekly  LimitTimespan = "weekly"
+	LimitDaily   LimitTimespan = "daily"
+)
+
 type ClaimType struct {
 	ID          uint           `json:"id" gorm:"primaryKey"`
 	Name        string         `json:"name" gorm:"not null"`
 	Description string         `json:"description"`
+	
+	// NEW FIELDS FOR CLAIM LIMITS
+	LimitAmount       float64       `json:"limit_amount" gorm:"default:0"`
+	LimitTimespan     LimitTimespan `json:"limit_timespan" gorm:"default:'annual'"`
+	
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
@@ -74,4 +88,36 @@ type ClaimApproval struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// UserGroupClaimType association model for user group claim type permissions
+type UserGroupClaimType struct {
+	ID                uint      `json:"id" gorm:"primaryKey"`
+	UserGroupID       uint      `json:"user_group_id" gorm:"not null"`
+	ClaimTypeID       uint      `json:"claim_type_id" gorm:"not null"`
+	IsAllowed         bool      `json:"is_allowed" gorm:"default:true"`
+	CustomLimitAmount *float64  `json:"custom_limit_amount"`
+	
+	UserGroup         UserGroup `json:"user_group" gorm:"foreignKey:UserGroupID"`
+	ClaimType         ClaimType `json:"claim_type" gorm:"foreignKey:ClaimTypeID"`
+	
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// UserClaimType model for individual user overrides
+type UserClaimType struct {
+	ID                uint      `json:"id" gorm:"primaryKey"`
+	UserID            uint      `json:"user_id" gorm:"not null"`
+	ClaimTypeID       uint      `json:"claim_type_id" gorm:"not null"`
+	IsAllowed         bool      `json:"is_allowed" gorm:"default:true"`
+	CustomLimitAmount *float64  `json:"custom_limit_amount"`
+	
+	User              User      `json:"user" gorm:"foreignKey:UserID"`
+	ClaimType         ClaimType `json:"claim_type" gorm:"foreignKey:ClaimTypeID"`
+	
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }

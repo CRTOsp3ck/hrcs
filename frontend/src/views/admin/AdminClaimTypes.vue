@@ -80,9 +80,17 @@
         </template>
       </Column>
 
-      <Column header="Actions" :exportable="false" style="width: 120px">
+      <Column header="Actions" :exportable="false" style="width: 160px">
         <template #body="slotProps">
           <div class="flex row">
+            <Button
+              icon="pi pi-eye"
+              severity="info"
+              text
+              rounded
+              @click="viewClaimTypeDetails(slotProps.data)"
+              v-tooltip="'View Details'"
+            />
             <Button
               icon="pi pi-pencil"
               severity="secondary"
@@ -264,11 +272,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { FilterMatchMode } from '@primevue/core/api'
 import { useToast } from 'primevue/usetoast'
 import { adminApi } from '@/api'
 
 const toast = useToast()
+const router = useRouter()
 
 const loading = ref(false)
 const claimTypes = ref([])
@@ -381,6 +391,10 @@ const toggleStatus = async (claimType: any) => {
       life: 3000
     })
   }
+}
+
+const viewClaimTypeDetails = (claimType: any) => {
+  router.push(`/admin/claim-types/${claimType.id}`)
 }
 
 const editClaimType = (claimType: any) => {

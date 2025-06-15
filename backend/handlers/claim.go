@@ -7,6 +7,7 @@ import (
 
 	"hrcs/backend/middleware"
 	"hrcs/backend/models"
+	"hrcs/backend/services"
 	"hrcs/backend/utils"
 
 	"github.com/go-chi/chi/v5"
@@ -14,7 +15,8 @@ import (
 )
 
 type ClaimHandler struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	balanceService *services.BalanceService
 }
 
 type CreateClaimRequest struct {
@@ -37,7 +39,10 @@ type ApproveClaimRequest struct {
 }
 
 func NewClaimHandler(db *gorm.DB) *ClaimHandler {
-	return &ClaimHandler{DB: db}
+	return &ClaimHandler{
+		DB:             db,
+		balanceService: services.NewBalanceService(db),
+	}
 }
 
 func (h *ClaimHandler) GetClaimTypes(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +61,17 @@ func (h *ClaimHandler) CreateClaim(w http.ResponseWriter, r *http.Request) {
 	var req CreateClaimRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// NEW: Balance validation
+	canClaim, message, err := h.balanceService.CanUserClaim(user.ID, req.ClaimTypeID, req.Amount)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Balance check failed")
+		return
+	}
+	if !canClaim {
+		utils.WriteError(w, http.StatusBadRequest, message)
 		return
 	}
 
@@ -248,10 +264,25 @@ func (h *ClaimHandler) ApproveClaim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Store the old status to check if we're changing to paid
+	oldStatus := claim.Status
 	claim.Status = req.Status
+	
 	if err := h.DB.Save(&claim).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to update claim status")
 		return
+	}
+
+	// NEW: Deduct from balance when marking as paid
+	if req.Status == models.StatusPaid && oldStatus != models.StatusPaid {
+		err := h.balanceService.DeductFromBalance(claim.UserID, claim.ClaimTypeID, claim.Amount)
+		if err != nil {
+			// Rollback the status change
+			claim.Status = oldStatus
+			h.DB.Save(&claim)
+			utils.WriteError(w, http.StatusInternalServerError, "Balance deduction failed")
+			return
+		}
 	}
 
 	approval := models.ClaimApproval{

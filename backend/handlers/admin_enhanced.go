@@ -10,6 +10,7 @@ import (
 
 	"hrcs/backend/middleware"
 	"hrcs/backend/models"
+	"hrcs/backend/services"
 	"hrcs/backend/utils"
 
 	"github.com/go-chi/chi/v5"
@@ -17,7 +18,8 @@ import (
 )
 
 type AdminEnhancedHandler struct {
-	DB *gorm.DB
+	DB             *gorm.DB
+	balanceService *services.BalanceService
 }
 
 type ApprovalStep struct {
@@ -45,7 +47,10 @@ type ApprovalPermissions struct {
 }
 
 func NewAdminEnhancedHandler(db *gorm.DB) *AdminEnhancedHandler {
-	return &AdminEnhancedHandler{DB: db}
+	return &AdminEnhancedHandler{
+		DB:             db,
+		balanceService: services.NewBalanceService(db),
+	}
 }
 
 // Admin Claims Management
@@ -331,11 +336,26 @@ func (h *AdminEnhancedHandler) UpdateClaimStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Store the old status to check if we're changing to paid
+	oldStatus := claim.Status
+	
 	// Update claim status
 	claim.Status = req.Status
 	if err := h.DB.Save(&claim).Error; err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to update claim status")
 		return
+	}
+
+	// NEW: Deduct from balance when marking as paid
+	if req.Status == models.StatusPaid && oldStatus != models.StatusPaid {
+		err := h.balanceService.DeductFromBalance(claim.UserID, claim.ClaimTypeID, claim.Amount)
+		if err != nil {
+			// Rollback the status change
+			claim.Status = oldStatus
+			h.DB.Save(&claim)
+			utils.WriteError(w, http.StatusInternalServerError, "Balance deduction failed")
+			return
+		}
 	}
 
 	// Find the approval level ID for this user and claim user group

@@ -24,6 +24,9 @@ export interface ClaimType {
   name: string
   description?: string
   is_active: boolean
+  // NEW FIELDS FOR CLAIM LIMITS
+  limit_amount: number
+  limit_timespan: 'annual' | 'monthly' | 'weekly' | 'daily'
   created_at: string
   updated_at: string
 }
@@ -149,4 +152,81 @@ export interface DashboardStats {
   recentClaims: Claim[]
   claimsByStatus: { status: string; count: number }[]
   claimsByType: { type: string; count: number; amount: number }[]
+}
+
+// NEW INTERFACES FOR BALANCE TRACKING
+
+export interface UserClaimBalance {
+  id: number
+  user_id: number
+  claim_type_id: number
+  total_limit: number
+  current_spent: number
+  remaining_balance: number
+  last_reset_date: string
+  reset_period: 'annual' | 'monthly' | 'weekly' | 'daily'
+  claim_type: ClaimType
+  created_at: string
+  updated_at: string
+}
+
+export interface BalanceInfo {
+  claim_type_id: number
+  claim_type_name: string
+  total_limit: number
+  current_spent: number
+  remaining_balance: number
+  can_claim_amount: number
+}
+
+export interface UserGroupClaimPermission {
+  id: number
+  user_group_id: number
+  claim_type_id: number
+  is_allowed: boolean
+  custom_limit_amount?: number
+  user_group: UserGroup
+  claim_type: ClaimType
+  created_at: string
+  updated_at: string
+}
+
+export interface UserClaimPermission {
+  id: number
+  user_id: number
+  claim_type_id: number
+  is_allowed: boolean
+  custom_limit_amount?: number
+  user: User
+  claim_type: ClaimType
+  created_at: string
+  updated_at: string
+}
+
+// DETAIL VIEW INTERFACES
+
+export interface UserDetails {
+  user: User
+  balances: UserClaimBalance[]
+  claims: Claim[]
+  permissions: UserClaimPermission[]
+}
+
+export interface UserGroupDetails {
+  group: UserGroup
+  members: User[]
+  permissions: UserGroupClaimPermission[]
+  approval_levels: ApprovalLevel[]
+}
+
+export interface ClaimTypeDetails {
+  claim_type: ClaimType
+  stats: {
+    total_claims: number
+    approved_claims: number
+    total_amount: number
+    average_amount: number
+  }
+  group_permissions: UserGroupClaimPermission[]
+  recent_claims: Claim[]
 }
