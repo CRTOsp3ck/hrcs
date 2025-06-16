@@ -12,7 +12,7 @@ help:
 	@echo "  make seed         - Seed database with sample data"
 	@echo "  make seed-clear   - Clear and reseed database"
 	@echo "  make dev-backend  - Start backend development server"
-	@echo "  make dev-frontend - Start frontend development server" 
+	@echo "  make dev-frontend - Start frontend development server"
 	@echo "  make dev          - Start both backend and frontend"
 	@echo "  make build        - Build the application"
 	@echo "  make docker-up    - Start PostgreSQL with Docker"
@@ -37,7 +37,8 @@ seed-clear:
 # Development servers
 dev-backend:
 	@echo "🔧 Starting backend server..."
-	@cd backend && go run main.go
+	@cd backend && air
+	# @cd backend && go run main.go
 
 dev-frontend:
 	@echo "🎨 Starting frontend server..."
