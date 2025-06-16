@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"hrcs/backend/middleware"
+	"hrcs/backend/models"
 	"hrcs/backend/services"
 	"hrcs/backend/utils"
 	"net/http"
@@ -23,11 +25,12 @@ func NewBalanceHandler(db *gorm.DB) *BalanceHandler {
 
 // GetUserBalances gets all balance records for the authenticated user
 func (h *BalanceHandler) GetUserBalances(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user := r.Context().Value(middleware.UserContextKey).(*models.User)
+	if user == nil {
 		utils.WriteError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
+	userID := user.ID
 
 	balances, err := h.balanceService.GetAllUserBalances(userID)
 	if err != nil {
@@ -42,11 +45,12 @@ func (h *BalanceHandler) GetUserBalances(w http.ResponseWriter, r *http.Request)
 
 // GetUserBalance gets balance for a specific claim type for the authenticated user
 func (h *BalanceHandler) GetUserBalance(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user := r.Context().Value(middleware.UserContextKey).(*models.User)
+	if user == nil {
 		utils.WriteError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
+	userID := user.ID
 
 	vars := chi.URLParam(r, "id")
 	claimTypeID, err := strconv.ParseUint(vars, 10, 32)
@@ -68,11 +72,12 @@ func (h *BalanceHandler) GetUserBalance(w http.ResponseWriter, r *http.Request) 
 
 // CheckClaimAmount validates if user can claim a specific amount
 func (h *BalanceHandler) CheckClaimAmount(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
-	if !ok {
+	user := r.Context().Value(middleware.UserContextKey).(*models.User)
+	if user == nil {
 		utils.WriteError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
+	userID := user.ID
 
 	var req struct {
 		ClaimTypeID uint    `json:"claim_type_id"`
@@ -99,8 +104,8 @@ func (h *BalanceHandler) CheckClaimAmount(w http.ResponseWriter, r *http.Request
 // AdminUpdateBalance allows admin to manually adjust a user's balance
 func (h *BalanceHandler) AdminUpdateBalance(w http.ResponseWriter, r *http.Request) {
 	// Check if user is admin
-	userRole, ok := r.Context().Value("user_role").(string)
-	if !ok || userRole != "admin" {
+	user := r.Context().Value(middleware.UserContextKey).(*models.User)
+	if user == nil || user.Role != models.RoleAdmin {
 		utils.WriteError(w, http.StatusForbidden, "Admin access required")
 		return
 	}
@@ -130,8 +135,8 @@ func (h *BalanceHandler) AdminUpdateBalance(w http.ResponseWriter, r *http.Reque
 // GetUserBalanceDetails gets detailed balance information for admin view
 func (h *BalanceHandler) GetUserBalanceDetails(w http.ResponseWriter, r *http.Request) {
 	// Check if user is admin
-	userRole, ok := r.Context().Value("user_role").(string)
-	if !ok || userRole != "admin" {
+	user := r.Context().Value(middleware.UserContextKey).(*models.User)
+	if user == nil || user.Role != models.RoleAdmin {
 		utils.WriteError(w, http.StatusForbidden, "Admin access required")
 		return
 	}
