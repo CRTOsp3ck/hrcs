@@ -183,7 +183,7 @@ const pendingClaimsCount = ref(12)
 .admin-content {
   background: var(--surface-0);
   border-radius: var(--space-8);
-  padding: var(--space-21);
+  padding: var(--space-34) var(--space-21) var(--space-21);
   box-shadow: 0 var(--space-1) var(--space-5) rgba(0, 0, 0, 0.1);
 }
 
