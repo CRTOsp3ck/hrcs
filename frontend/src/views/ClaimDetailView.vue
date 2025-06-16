@@ -123,42 +123,6 @@
       </Card>
     </div>
 
-    <!-- Admin Actions -->
-    <Card v-if="authStore.isAdmin && claim.status === 'submitted'" class="admin-actions-card">
-      <template #header>
-        <h3 class="card-title">Admin Actions</h3>
-      </template>
-      <template #content>
-        <div class="admin-form">
-          <div class="form-field">
-            <label class="form-label">Comments (Optional)</label>
-            <Textarea 
-              v-model="adminComments"
-              rows="3"
-              placeholder="Add any comments about this decision..."
-              class="w-full"
-            />
-          </div>
-          <div class="admin-buttons">
-            <Button 
-              label="Approve Claim" 
-              icon="pi pi-check"
-              severity="success"
-              @click="approveClaim"
-              :loading="processing"
-            />
-            <Button 
-              label="Reject Claim" 
-              icon="pi pi-times"
-              severity="danger"
-              outlined
-              @click="rejectClaim"
-              :loading="processing"
-            />
-          </div>
-        </div>
-      </template>
-    </Card>
   </div>
 
   <div v-else class="page-container">
@@ -187,8 +151,6 @@ const confirm = useConfirm()
 const claim = ref<Claim | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
-const processing = ref(false)
-const adminComments = ref('')
 
 const claimId = computed(() => Number(route.params.id))
 
@@ -372,63 +334,6 @@ const cancelClaim = async () => {
   }
 }
 
-const approveClaim = async () => {
-  processing.value = true
-  try {
-    await claimsApi.approve(claimId.value, { comments: adminComments.value })
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Claim approved successfully',
-      life: 3000
-    })
-    adminComments.value = ''
-    loadClaim()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to approve claim',
-      life: 3000
-    })
-  } finally {
-    processing.value = false
-  }
-}
-
-const rejectClaim = async () => {
-  if (!adminComments.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Comments Required',
-      detail: 'Please provide a reason for rejection',
-      life: 3000
-    })
-    return
-  }
-  
-  processing.value = true
-  try {
-    await claimsApi.reject(claimId.value, { comments: adminComments.value })
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Claim rejected',
-      life: 3000
-    })
-    adminComments.value = ''
-    loadClaim()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to reject claim',
-      life: 3000
-    })
-  } finally {
-    processing.value = false
-  }
-}
 
 onMounted(() => {
   loadClaim()

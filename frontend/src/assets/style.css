@@ -371,7 +371,7 @@ body {
 
 /* Admin pages - no navbar padding since AdminView handles it */
 .admin-page-container {
-  padding: var(--space-21);
+  padding: var(--space-34) var(--space-21) var(--space-21);
   max-width: var(--container-lg);
   margin: 0 auto;
 }

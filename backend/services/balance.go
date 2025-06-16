@@ -51,7 +51,10 @@ func (s *BalanceService) createUserBalance(userID, claimTypeID uint) (*models.Us
 	// Get the claim type to determine default limits
 	var claimType models.ClaimType
 	if err := s.db.First(&claimType, claimTypeID).Error; err != nil {
-		return nil, fmt.Errorf("claim type not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("claim type not found")
+		}
+		return nil, fmt.Errorf("failed to fetch claim type: %w", err)
 	}
 	
 	// Check for user-specific overrides
@@ -65,7 +68,10 @@ func (s *BalanceService) createUserBalance(userID, claimTypeID uint) (*models.Us
 	// Check for user group overrides
 	var user models.User
 	if err := s.db.Preload("UserGroup").First(&user, userID).Error; err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to fetch user: %w", err)
 	}
 	
 	if user.UserGroupID != nil {
@@ -93,7 +99,11 @@ func (s *BalanceService) createUserBalance(userID, claimTypeID uint) (*models.Us
 	}
 	
 	// Load relationships for return
-	s.db.Preload("User").Preload("ClaimType").First(&balance, balance.ID)
+	if err := s.db.Preload("User").Preload("ClaimType").First(&balance, balance.ID).Error; err != nil {
+		// Even if we can't load relationships, return the balance we created
+		balance.User = user
+		balance.ClaimType = claimType
+	}
 	
 	return &balance, nil
 }
@@ -135,7 +145,10 @@ func (s *BalanceService) canUserAccessClaimType(userID, claimTypeID uint) (bool,
 	// Check user group permissions
 	var user models.User
 	if err := s.db.Preload("UserGroup").First(&user, userID).Error; err != nil {
-		return false, fmt.Errorf("user not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, fmt.Errorf("user not found")
+		}
+		return false, fmt.Errorf("failed to fetch user: %w", err)
 	}
 	
 	if user.UserGroupID != nil {

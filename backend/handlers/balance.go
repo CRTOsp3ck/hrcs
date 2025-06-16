@@ -61,6 +61,18 @@ func (h *BalanceHandler) GetUserBalance(w http.ResponseWriter, r *http.Request) 
 
 	balance, err := h.balanceService.GetUserBalance(userID, uint(claimTypeID))
 	if err != nil {
+		// Check if the error is due to claim type not found
+		if err.Error() == "claim type not found" {
+			utils.WriteError(w, http.StatusNotFound, "Claim type not found")
+			return
+		}
+		
+		// Check if the error is due to user not found
+		if err.Error() == "user not found" {
+			utils.WriteError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to get user balance")
 		return
 	}
@@ -91,6 +103,18 @@ func (h *BalanceHandler) CheckClaimAmount(w http.ResponseWriter, r *http.Request
 
 	canClaim, message, err := h.balanceService.CanUserClaim(userID, req.ClaimTypeID, req.Amount)
 	if err != nil {
+		// Check if the error is due to claim type not found
+		if err.Error() == "claim type not found" {
+			utils.WriteError(w, http.StatusNotFound, "Claim type not found")
+			return
+		}
+		
+		// Check if the error is due to user not found
+		if err.Error() == "user not found" {
+			utils.WriteError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to check claim amount")
 		return
 	}
@@ -123,6 +147,18 @@ func (h *BalanceHandler) AdminUpdateBalance(w http.ResponseWriter, r *http.Reque
 
 	err := h.balanceService.AdminAdjustBalance(req.UserID, req.ClaimTypeID, req.NewLimit)
 	if err != nil {
+		// Check if the error is due to claim type not found
+		if err.Error() == "claim type not found" {
+			utils.WriteError(w, http.StatusNotFound, "Claim type not found")
+			return
+		}
+		
+		// Check if the error is due to user not found
+		if err.Error() == "user not found" {
+			utils.WriteError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to adjust balance")
 		return
 	}

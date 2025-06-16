@@ -211,7 +211,7 @@
           <p><strong>Name:</strong> {{ authStore.user?.name }}</p>
           <p><strong>Email:</strong> {{ authStore.user?.email }}</p>
           <p><strong>Role:</strong> <Tag :value="authStore.user?.role" :severity="authStore.isAdmin ? 'success' : 'info'" /></p>
-          <p v-if="authStore.user?.group"><strong>Group:</strong> {{ authStore.user.group.name }}</p>
+          <p v-if="authStore.user?.user_group"><strong>Group:</strong> {{ authStore.user.user_group.name }}</p>
           <p><strong>Member Since:</strong> {{ formatDate(authStore.user?.created_at) }}</p>
         </div>
       </div>
@@ -383,6 +383,10 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 3rem;
+}
+
+.empty-state p {
+  margin-bottom: 1rem;
 }
 
 .empty-icon {

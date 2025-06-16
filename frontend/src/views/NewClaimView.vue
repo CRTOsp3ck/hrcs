@@ -53,7 +53,7 @@
                 />
                 <small v-if="errors.amount" class="p-error">{{ errors.amount }}</small>
                 <small v-if="isBalanceExceeded && !errors.amount" class="p-error">
-                  Amount exceeds remaining balance of ${{ balanceInfo?.remaining_balance.toFixed(2) }}
+                  Amount exceeds remaining balance of ${{ formatBalance(balanceInfo?.remaining_balance) }}
                 </small>
               </div>
 
@@ -69,21 +69,21 @@
                 <template #content>
                   <div class="balance-grid">
                     <div class="balance-item">
-                      <label>Total Limit ({{ selectedClaimType.limit_timespan }}):</label>
-                      <span class="amount">${{ balanceInfo.total_limit.toFixed(2) }}</span>
+                      <label>Total Limit ({{ selectedClaimType?.limit_timespan || 'N/A' }}):</label>
+                      <span class="amount">${{ formatBalance(balanceInfo.total_limit) }}</span>
                     </div>
                     <div class="balance-item">
                       <label>Current Spent:</label>
-                      <span class="amount">${{ balanceInfo.current_spent.toFixed(2) }}</span>
+                      <span class="amount">${{ formatBalance(balanceInfo.current_spent) }}</span>
                     </div>
                     <div class="balance-item">
                       <label>Remaining Balance:</label>
-                      <span class="amount remaining" :class="{ 'low-balance': balanceInfo.remaining_balance < 100 }">
-                        ${{ balanceInfo.remaining_balance.toFixed(2) }}
+                      <span class="amount remaining" :class="{ 'low-balance': (balanceInfo.remaining_balance || 0) < 100 }">
+                        ${{ formatBalance(balanceInfo.remaining_balance) }}
                       </span>
                     </div>
                   </div>
-                  <div v-if="balanceInfo.remaining_balance <= 0" class="balance-warning">
+                  <div v-if="(balanceInfo.remaining_balance || 0) <= 0" class="balance-warning">
                     <i class="pi pi-exclamation-triangle mr-2"></i>
                     <span>No remaining balance for this claim type</span>
                   </div>
@@ -118,12 +118,14 @@
               </div>
             </div>
 
-            <Divider />
+            <div style="padding-bottom: 2rem;"></div>
 
             <div class="form-actions">
               <Button
                 label="Cancel"
-                severity="secondary"
+                severity="secondary"Drag and drop files here or click to browse
+
+
                 outlined
                 @click="router.push('/claims')"
               />
@@ -189,10 +191,12 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { claimsApi, claimTypesApi, balanceApi } from '@/api'
 import { useToast } from 'primevue/usetoast'
+import { useAuthStore } from '@/stores/auth'
 import type { ClaimType, UserClaimBalance } from '@/types'
 
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 
 const saving = ref(false)
 const submitting = ref(false)
@@ -220,8 +224,12 @@ const selectedClaimType = computed(() => {
 
 const isBalanceExceeded = computed(() => {
   if (!balanceInfo.value || !form.amount) return false
-  return form.amount > balanceInfo.value.remaining_balance
+  return form.amount > (balanceInfo.value.remaining_balance || 0)
 })
+
+const formatBalance = (amount: number | undefined) => {
+  return (amount || 0).toFixed(2)
+}
 
 const breadcrumbItems = [
   { label: 'Claims', route: '/claims' },
@@ -239,10 +247,65 @@ const loadUserBalance = async (claimTypeId: number) => {
     const response = await balanceApi.getUserBalance(claimTypeId)
     if (response.data.data) {
       balanceInfo.value = response.data.data
+      console.log('Successfully loaded balance info:', balanceInfo.value)
+    } else {
+      console.warn('No balance data returned, creating default balance')
+      // Create default balance info if none exists
+      const claimType = selectedClaimType.value
+      if (claimType) {
+        balanceInfo.value = {
+          user_id: authStore.user?.id || 0,
+          claim_type_id: claimTypeId,
+          total_limit: claimType.limit_amount || 0,
+          current_spent: 0,
+          remaining_balance: claimType.limit_amount || 0,
+          last_reset_date: new Date().toISOString(),
+          reset_period: claimType.limit_timespan || 'annual'
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to load balance:', error)
-    balanceInfo.value = null
+
+    // Don't logout for balance errors - provide graceful fallback
+    if (error.response?.status === 401) {
+      console.log('Auth error loading balance - checking token')
+      if (authStore.isTokenExpired()) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Session Expired',
+          detail: 'Please log in again to continue',
+          life: 3000
+        })
+        authStore.logout()
+        router.push('/login')
+        return
+      }
+    }
+
+    // For other errors, create default balance to allow user to continue
+    const claimType = selectedClaimType.value
+    if (claimType) {
+      console.log('Creating default balance due to error')
+      balanceInfo.value = {
+        user_id: authStore.user?.id || 0,
+        claim_type_id: claimTypeId,
+        total_limit: claimType.limit_amount || 0,
+        current_spent: 0,
+        remaining_balance: claimType.limit_amount || 0,
+        last_reset_date: new Date().toISOString(),
+        reset_period: claimType.limit_timespan || 'annual'
+      }
+
+      toast.add({
+        severity: 'info',
+        summary: 'Balance Info',
+        detail: 'Using default balance limits for this claim type',
+        life: 4000
+      })
+    } else {
+      balanceInfo.value = null
+    }
   } finally {
     loadingBalance.value = false
   }
@@ -250,18 +313,18 @@ const loadUserBalance = async (claimTypeId: number) => {
 
 const validateAmount = async () => {
   if (!form.claim_type_id || !form.amount) return true
-  
+
   try {
     const response = await balanceApi.checkClaimAmount({
       claim_type_id: form.claim_type_id,
       amount: form.amount
     })
-    
+
     if (!response.data.data?.can_claim) {
-      errors.amount = response.data.data?.message || `Amount exceeds remaining balance of $${balanceInfo.value?.remaining_balance.toFixed(2)}`
+      errors.amount = response.data.data?.message || `Amount exceeds remaining balance of $${(balanceInfo.value?.remaining_balance || 0).toFixed(2)}`
       return false
     }
-    
+
     // Clear amount error if validation passes
     if (errors.amount.includes('balance') || errors.amount.includes('exceeds')) {
       errors.amount = ''
@@ -380,14 +443,50 @@ const handleSubmit = async () => {
 }
 
 const loadClaimTypes = async () => {
+  // Check if token is expired before making API call
+  if (authStore.isTokenExpired()) {
+    console.log('Token expired, redirecting to login')
+    toast.add({
+      severity: 'warn',
+      summary: 'Session Expired',
+      detail: 'Please log in again to continue',
+      life: 3000
+    })
+    authStore.logout()
+    router.push('/login')
+    return
+  }
+
   try {
+    console.log('Loading claim types...')
     const response = await claimTypesApi.getAll()
-    // console.log('Claim types response', response.data.data)
+    console.log('Claim types response:', response.data)
+
     if (response.data.data) {
-      // claimTypes.value = response.data.data.filter(type => type.is_active) - will implement is active later
-      claimTypes.value = response.data.data
+      claimTypes.value = response.data.data.filter(type => {
+        return type.is_active !== false
+      })
+      console.log('Successfully loaded claim types:', claimTypes.value)
+    } else {
+      console.warn('No claim types data in response')
     }
   } catch (error) {
+    console.error('Failed to load claim types:', error)
+
+    // Check if it's an auth error
+    if (error.response?.status === 401) {
+      console.log('Auth error when loading claim types - token may have expired during request')
+      toast.add({
+        severity: 'warn',
+        summary: 'Session Expired',
+        detail: 'Please log in again to continue',
+        life: 3000
+      })
+      authStore.logout()
+      router.push('/login')
+      return
+    }
+
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -622,7 +721,7 @@ onMounted(() => {
   .content-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .tips-card {
     width: 100%;
     position: static;

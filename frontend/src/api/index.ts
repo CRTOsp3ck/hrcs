@@ -40,9 +40,17 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      // Only redirect to login if we're not already on login page
+      // and if it's not an expected auth failure (like wrong credentials)
+      const currentPath = window.location.pathname
+      const isLoginPage = currentPath === '/login' || currentPath === '/register'
+      
+      if (!isLoginPage) {
+        console.log('Authentication failed, redirecting to login:', error.response?.data)
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

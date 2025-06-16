@@ -12,6 +12,29 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
 
+  function isTokenExpired() {
+    if (!token.value) return true
+    
+    try {
+      // JWT tokens have 3 parts separated by dots
+      const tokenParts = token.value.split('.')
+      if (tokenParts.length !== 3) return true
+      
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(tokenParts[1]))
+      
+      // Check if token has expired (exp is in seconds, Date.now() is in milliseconds)
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Error checking token expiration:', error)
+      return true
+    }
+  }
+
   async function init() {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
@@ -89,6 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     isAdmin,
+    isTokenExpired,
     init,
     login,
     register,
