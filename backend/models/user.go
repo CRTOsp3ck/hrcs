@@ -14,21 +14,21 @@ const (
 )
 
 type User struct {
-	ID          uint           `json:"id" gorm:"primaryKey"`
-	Email       string         `json:"email" gorm:"uniqueIndex;not null"`
-	Password    string         `json:"-" gorm:"not null"`
-	FirstName   string         `json:"first_name" gorm:"not null"`
-	LastName    string         `json:"last_name" gorm:"not null"`
-	Role        UserRole       `json:"role" gorm:"default:normal"`
-	UserGroupID *uint          `json:"user_group_id"`
-	UserGroup   *UserGroup     `json:"user_group,omitempty"`
-	
+	ID          uint       `json:"id" gorm:"primaryKey"`
+	Email       string     `json:"email" gorm:"uniqueIndex;not null"`
+	Password    string     `json:"-" gorm:"not null"`
+	FirstName   string     `json:"first_name" gorm:"not null"`
+	LastName    string     `json:"last_name" gorm:"not null"`
+	Role        UserRole   `json:"role" gorm:"default:normal"`
+	UserGroupID *uint      `json:"user_group_id"`
+	UserGroup   *UserGroup `json:"user_group,omitempty"`
+
 	// NEW FIELDS FOR BALANCE TRACKING
 	ClaimBalances []UserClaimBalance `json:"claim_balances" gorm:"foreignKey:UserID"`
-	
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 type UserGroup struct {
@@ -42,23 +42,23 @@ type UserGroup struct {
 
 // UserClaimBalance model for tracking user balances per claim type
 type UserClaimBalance struct {
-	ID              uint      `json:"id" gorm:"primaryKey"`
-	UserID          uint      `json:"user_id" gorm:"not null"`
-	ClaimTypeID     uint      `json:"claim_type_id" gorm:"not null"`
-	
+	ID          uint `json:"id" gorm:"primaryKey"`
+	UserID      uint `json:"user_id" gorm:"not null"`
+	ClaimTypeID uint `json:"claim_type_id" gorm:"not null"`
+
 	// Balance tracking
-	TotalLimit      float64   `json:"total_limit" gorm:"not null"`
-	CurrentSpent    float64   `json:"current_spent" gorm:"default:0"`
-	RemainingBalance float64  `json:"remaining_balance" gorm:"default:0"`
-	
+	TotalLimit       float64 `json:"total_limit" gorm:"not null"`
+	CurrentSpent     float64 `json:"current_spent" gorm:"default:0"`
+	RemainingBalance float64 `json:"remaining_balance" gorm:"default:0"`
+
 	// Reset tracking
-	LastResetDate   time.Time `json:"last_reset_date"`
-	ResetPeriod     LimitTimespan `json:"reset_period" gorm:"not null"`
-	
+	LastResetDate time.Time     `json:"last_reset_date"`
+	ResetPeriod   LimitTimespan `json:"reset_period" gorm:"not null"`
+
 	// Relationships
-	User            User      `json:"user" gorm:"foreignKey:UserID"`
-	ClaimType       ClaimType `json:"claim_type" gorm:"foreignKey:ClaimTypeID"`
-	
+	User      User      `json:"user" gorm:"foreignKey:UserID"`
+	ClaimType ClaimType `json:"claim_type" gorm:"foreignKey:ClaimTypeID"`
+
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`

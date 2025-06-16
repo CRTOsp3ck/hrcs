@@ -247,13 +247,47 @@
     <Dialog v-model:visible="showPermissionsDialog" header="Manage Claim Type Permissions" modal class="w-full max-w-4xl">
       <div class="py-4">
         <p style="color: var(--surface-600); margin-bottom: var(--space-13);">Configure which claim types this group can access:</p>
-        <!-- TODO: Implement permissions management interface -->
-        <div class="no-data-message">
-          Permissions management interface will be implemented here
+        <div v-if="availableClaimTypes.length === 0" class="no-data-message">
+          Loading claim types...
+        </div>
+        <div v-else class="permissions-grid">
+          <div v-for="claimType in availableClaimTypes" :key="claimType.id" class="permission-item">
+            <div class="permission-header">
+              <h4>{{ claimType.name }}</h4>
+              <p class="permission-description">{{ claimType.description || 'No description available' }}</p>
+            </div>
+            <div class="permission-controls">
+              <div class="permission-toggle">
+                <label class="toggle-label">Access Allowed:</label>
+                <InputSwitch 
+                  v-model="ensurePermissionSetting(claimType.id).is_allowed" 
+                  @change="updatePermissionSetting(claimType.id)" 
+                />
+              </div>
+              <div v-if="ensurePermissionSetting(claimType.id).is_allowed" class="custom-limit">
+                <label class="limit-label">Custom Limit (optional):</label>
+                <div class="limit-input-group">
+                  <InputNumber 
+                    v-model="ensurePermissionSetting(claimType.id).custom_limit_amount"
+                    mode="currency" 
+                    currency="USD" 
+                    locale="en-US"
+                    :min="0"
+                    placeholder="Use default limit"
+                    class="w-full"
+                  />
+                  <small class="default-limit-text">
+                    Default: ${{ claimType.limit_amount.toFixed(2) }} ({{ claimType.limit_timespan }})
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <template #footer>
-        <Button label="Close" @click="showPermissionsDialog = false" />
+        <Button label="Cancel" severity="secondary" @click="cancelPermissionChanges" />
+        <Button label="Save Changes" @click="savePermissions" :loading="savingPermissions" />
       </template>
     </Dialog>
   </div>
@@ -263,8 +297,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import { adminApi } from '@/api'
-import type { UserGroupDetails } from '@/types'
+import { adminApi, claimTypesApi } from '@/api'
+import type { UserGroupDetails, ClaimType } from '@/types'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
@@ -274,6 +308,8 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import InputSwitch from 'primevue/inputswitch'
+import InputNumber from 'primevue/inputnumber'
 import PageHeader from '@/components/base/PageHeader.vue'
 
 const route = useRoute()
@@ -287,11 +323,26 @@ const showEditDialog = ref(false)
 const showMembersDialog = ref(false)
 const showPermissionsDialog = ref(false)
 const saving = ref(false)
+const savingPermissions = ref(false)
+const availableClaimTypes = ref<ClaimType[]>([])
+const permissionSettings = ref<Record<number, { is_allowed: boolean; custom_limit_amount?: number }>>({})
 
 const editForm = ref({
   name: '',
   description: ''
 })
+
+const originalPermissionSettings = ref<Record<number, { is_allowed: boolean; custom_limit_amount?: number }>>({})
+
+const ensurePermissionSetting = (claimTypeId: number) => {
+  if (!permissionSettings.value[claimTypeId]) {
+    permissionSettings.value[claimTypeId] = {
+      is_allowed: false,
+      custom_limit_amount: undefined
+    }
+  }
+  return permissionSettings.value[claimTypeId]
+}
 
 const pageTitle = computed(() => {
   if (!groupDetails.value?.group) return 'User Group Details'
@@ -369,13 +420,97 @@ const viewUserDetails = (userId: number) => {
   router.push(`/admin/users/${userId}`)
 }
 
-const editPermission = (permission: any) => {
-  // TODO: Implement permission editing
-  toast.add({
-    severity: 'info',
-    summary: 'Info',
-    detail: 'Permission editing not yet implemented'
+const editPermission = async (permission: any) => {
+  await loadClaimTypes()
+  initializePermissionSettings()
+  showPermissionsDialog.value = true
+}
+
+const loadClaimTypes = async () => {
+  try {
+    const response = await claimTypesApi.getAll()
+    if (response.data.data) {
+      availableClaimTypes.value = response.data.data
+    }
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load claim types'
+    })
+  }
+}
+
+const initializePermissionSettings = () => {
+  const settings: Record<number, { is_allowed: boolean; custom_limit_amount?: number }> = {}
+  
+  // First, initialize all claim types with default values
+  availableClaimTypes.value.forEach(claimType => {
+    settings[claimType.id] = {
+      is_allowed: false,
+      custom_limit_amount: undefined
+    }
   })
+  
+  // Then override with existing permissions
+  if (groupDetails.value?.permissions) {
+    groupDetails.value.permissions.forEach(permission => {
+      if (settings[permission.claim_type_id]) {
+        settings[permission.claim_type_id] = {
+          is_allowed: permission.is_allowed,
+          custom_limit_amount: permission.custom_limit_amount
+        }
+      }
+    })
+  }
+  
+  permissionSettings.value = settings
+  originalPermissionSettings.value = JSON.parse(JSON.stringify(settings))
+}
+
+const updatePermissionSetting = (claimTypeId: number) => {
+  if (permissionSettings.value[claimTypeId] && !permissionSettings.value[claimTypeId].is_allowed) {
+    // Clear custom limit when disabling access
+    permissionSettings.value[claimTypeId].custom_limit_amount = undefined
+  }
+}
+
+const cancelPermissionChanges = () => {
+  permissionSettings.value = JSON.parse(JSON.stringify(originalPermissionSettings.value))
+  showPermissionsDialog.value = false
+}
+
+const savePermissions = async () => {
+  if (!groupDetails.value?.group.id) return
+  
+  savingPermissions.value = true
+  try {
+    const permissions = Object.entries(permissionSettings.value).map(([claimTypeId, setting]) => ({
+      claim_type_id: parseInt(claimTypeId),
+      is_allowed: setting.is_allowed,
+      custom_limit_amount: setting.custom_limit_amount
+    }))
+    
+    await adminApi.setUserGroupClaimPermissions(groupDetails.value.group.id, { permissions })
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Permissions updated successfully'
+    })
+    
+    showPermissionsDialog.value = false
+    // Refresh the group details to show updated permissions
+    await fetchGroupDetails()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update permissions'
+    })
+  } finally {
+    savingPermissions.value = false
+  }
 }
 
 const addApprovalLevel = () => {
@@ -505,5 +640,74 @@ onMounted(() => {
   .content-grid {
     gap: var(--space-8);
   }
+}
+
+/* Permissions Management Styles */
+.permissions-grid {
+  display: grid;
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.permission-item {
+  border: 1px solid var(--surface-200);
+  border-radius: 8px;
+  padding: 1rem;
+  background: white;
+}
+
+.permission-header h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--surface-800);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.permission-description {
+  margin: 0 0 1rem 0;
+  color: var(--surface-600);
+  font-size: 0.875rem;
+}
+
+.permission-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.permission-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toggle-label {
+  font-weight: 500;
+  color: var(--surface-700);
+}
+
+.custom-limit {
+  padding-left: 1rem;
+  border-left: 2px solid var(--primary-200);
+}
+
+.limit-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--surface-700);
+  margin-bottom: 0.5rem;
+}
+
+.limit-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.default-limit-text {
+  color: var(--surface-500);
+  font-size: 0.75rem;
 }
 </style>

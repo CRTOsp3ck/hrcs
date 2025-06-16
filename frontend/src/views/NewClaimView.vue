@@ -47,12 +47,48 @@
                   currency="USD"
                   locale="en-US"
                   :min="0"
-                  :max="999999"
-                  :invalid="!!errors.amount"
+                  :max="balanceInfo?.remaining_balance || 999999"
+                  :invalid="!!errors.amount || isBalanceExceeded"
                   class="w-full"
                 />
                 <small v-if="errors.amount" class="p-error">{{ errors.amount }}</small>
+                <small v-if="isBalanceExceeded && !errors.amount" class="p-error">
+                  Amount exceeds remaining balance of ${{ balanceInfo?.remaining_balance.toFixed(2) }}
+                </small>
               </div>
+
+              <!-- Balance Information Card -->
+              <Card v-if="selectedClaimType && balanceInfo" class="balance-info-card span-2">
+                <template #header>
+                  <div class="balance-header">
+                    <i class="pi pi-wallet mr-2"></i>
+                    <h3>Balance Information</h3>
+                    <ProgressSpinner v-if="loadingBalance" style="width: 20px; height: 20px" />
+                  </div>
+                </template>
+                <template #content>
+                  <div class="balance-grid">
+                    <div class="balance-item">
+                      <label>Total Limit ({{ selectedClaimType.limit_timespan }}):</label>
+                      <span class="amount">${{ balanceInfo.total_limit.toFixed(2) }}</span>
+                    </div>
+                    <div class="balance-item">
+                      <label>Current Spent:</label>
+                      <span class="amount">${{ balanceInfo.current_spent.toFixed(2) }}</span>
+                    </div>
+                    <div class="balance-item">
+                      <label>Remaining Balance:</label>
+                      <span class="amount remaining" :class="{ 'low-balance': balanceInfo.remaining_balance < 100 }">
+                        ${{ balanceInfo.remaining_balance.toFixed(2) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div v-if="balanceInfo.remaining_balance <= 0" class="balance-warning">
+                    <i class="pi pi-exclamation-triangle mr-2"></i>
+                    <span>No remaining balance for this claim type</span>
+                  </div>
+                </template>
+              </Card>
 
               <div class="form-field span-2">
                 <label for="description" class="form-label required">Description</label>
@@ -149,11 +185,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { claimsApi, claimTypesApi } from '@/api'
+import { claimsApi, claimTypesApi, balanceApi } from '@/api'
 import { useToast } from 'primevue/usetoast'
-import type { ClaimType } from '@/types'
+import type { ClaimType, UserClaimBalance } from '@/types'
 
 const router = useRouter()
 const toast = useToast()
@@ -161,6 +197,8 @@ const toast = useToast()
 const saving = ref(false)
 const submitting = ref(false)
 const claimTypes = ref<ClaimType[]>([])
+const balanceInfo = ref<UserClaimBalance | null>(null)
+const loadingBalance = ref(false)
 
 const form = reactive({
   title: '',
@@ -176,12 +214,66 @@ const errors = reactive({
   claim_type_id: ''
 })
 
+const selectedClaimType = computed(() => {
+  return claimTypes.value.find(type => type.id === form.claim_type_id)
+})
+
+const isBalanceExceeded = computed(() => {
+  if (!balanceInfo.value || !form.amount) return false
+  return form.amount > balanceInfo.value.remaining_balance
+})
+
 const breadcrumbItems = [
   { label: 'Claims', route: '/claims' },
   { label: 'New Claim' }
 ]
 
-const validateForm = () => {
+const loadUserBalance = async (claimTypeId: number) => {
+  if (!claimTypeId) {
+    balanceInfo.value = null
+    return
+  }
+
+  loadingBalance.value = true
+  try {
+    const response = await balanceApi.getUserBalance(claimTypeId)
+    if (response.data.data) {
+      balanceInfo.value = response.data.data
+    }
+  } catch (error) {
+    console.error('Failed to load balance:', error)
+    balanceInfo.value = null
+  } finally {
+    loadingBalance.value = false
+  }
+}
+
+const validateAmount = async () => {
+  if (!form.claim_type_id || !form.amount) return true
+  
+  try {
+    const response = await balanceApi.checkClaimAmount({
+      claim_type_id: form.claim_type_id,
+      amount: form.amount
+    })
+    
+    if (!response.data.data?.can_claim) {
+      errors.amount = response.data.data?.message || `Amount exceeds remaining balance of $${balanceInfo.value?.remaining_balance.toFixed(2)}`
+      return false
+    }
+    
+    // Clear amount error if validation passes
+    if (errors.amount.includes('balance') || errors.amount.includes('exceeds')) {
+      errors.amount = ''
+    }
+    return true
+  } catch (error) {
+    errors.amount = 'Unable to validate balance'
+    return false
+  }
+}
+
+const validateForm = async () => {
   let isValid = true
   Object.keys(errors).forEach(key => errors[key as keyof typeof errors] = '')
 
@@ -201,6 +293,12 @@ const validateForm = () => {
   if (!form.amount || form.amount <= 0) {
     errors.amount = 'Amount must be greater than 0'
     isValid = false
+  } else {
+    // Validate balance if amount is valid
+    const balanceValid = await validateAmount()
+    if (!balanceValid) {
+      isValid = false
+    }
   }
 
   if (!form.description) {
@@ -218,7 +316,7 @@ const validateForm = () => {
 }
 
 const saveDraft = async () => {
-  if (!validateForm()) return
+  if (!(await validateForm())) return
 
   saving.value = true
   try {
@@ -248,7 +346,7 @@ const saveDraft = async () => {
 }
 
 const handleSubmit = async () => {
-  if (!validateForm()) return
+  if (!(await validateForm())) return
 
   submitting.value = true
   try {
@@ -298,6 +396,31 @@ const loadClaimTypes = async () => {
     })
   }
 }
+
+// Watch for claim type changes to load balance
+watch(() => form.claim_type_id, (newClaimTypeId) => {
+  if (newClaimTypeId) {
+    loadUserBalance(newClaimTypeId)
+  } else {
+    balanceInfo.value = null
+  }
+})
+
+// Watch amount changes for real-time validation
+watch(() => form.amount, async (newAmount) => {
+  if (newAmount && form.claim_type_id && balanceInfo.value) {
+    // Clear previous balance-related errors
+    if (errors.amount.includes('balance') || errors.amount.includes('exceeds')) {
+      errors.amount = ''
+    }
+    // Debounce validation to avoid too many API calls
+    setTimeout(() => {
+      if (form.amount === newAmount) { // Only validate if amount hasn't changed
+        validateAmount()
+      }
+    }, 500)
+  }
+})
 
 onMounted(() => {
   loadClaimTypes()
@@ -427,6 +550,74 @@ onMounted(() => {
   color: var(--surface-500);
 }
 
+/* Balance Information Styles */
+.balance-info-card {
+  border: 1px solid var(--primary-200);
+  background: var(--primary-50);
+}
+
+.balance-header {
+  display: flex;
+  align-items: center;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--primary-700);
+}
+
+.balance-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.balance-item {
+  text-align: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid var(--surface-200);
+}
+
+.balance-item label {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--surface-600);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.balance-item .amount {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--surface-800);
+}
+
+.balance-item .amount.remaining {
+  color: var(--green-600);
+}
+
+.balance-item .amount.low-balance {
+  color: var(--orange-600);
+}
+
+.balance-warning {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--orange-100);
+  border: 1px solid var(--orange-300);
+  border-radius: 6px;
+  color: var(--orange-800);
+  font-weight: 500;
+}
+
 @media (max-width: 1200px) {
   .content-layout {
     grid-template-columns: 1fr;
@@ -446,6 +637,11 @@ onMounted(() => {
 
   .span-2 {
     grid-column: span 1;
+  }
+
+  .balance-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .form-actions {

@@ -18,6 +18,20 @@
           @click="resetPassword"
           :loading="loading"
         />
+        <Button 
+          icon="pi pi-cog" 
+          label="Manage Permissions" 
+          severity="secondary" 
+          @click="managePermissions"
+          :loading="loading"
+        />
+        <Button 
+          icon="pi pi-wallet" 
+          label="Adjust Balances" 
+          severity="secondary" 
+          @click="adjustBalances"
+          :loading="loading"
+        />
       </template>
     </PageHeader>
 
@@ -207,6 +221,116 @@
         <Button label="Save" @click="saveUser" :loading="saving" />
       </template>
     </Dialog>
+
+    <!-- Manage Permissions Dialog -->
+    <Dialog v-model:visible="showPermissionsDialog" header="Manage User Permission Overrides" modal class="w-full max-w-4xl">
+      <div class="py-4">
+        <p style="color: var(--surface-600); margin-bottom: var(--space-13);">Configure individual permission overrides for this user. These will override group permissions:</p>
+        <div v-if="availableClaimTypes.length === 0" class="no-data-message">
+          Loading claim types...
+        </div>
+        <div v-else class="permissions-grid">
+          <div v-for="claimType in availableClaimTypes" :key="claimType.id" class="permission-item">
+            <div class="permission-header">
+              <h4>{{ claimType.name }}</h4>
+              <p class="permission-description">{{ claimType.description || 'No description available' }}</p>
+            </div>
+            <div class="permission-controls">
+              <div class="permission-toggle">
+                <label class="toggle-label">Override Access:</label>
+                <SelectButton 
+                  v-model="ensurePermissionSetting(claimType.id).override" 
+                  :options="overrideOptions" 
+                  optionLabel="label" 
+                  optionValue="value"
+                  @change="updatePermissionSetting(claimType.id)" 
+                />
+                <small class="override-help">
+                  {{ getOverrideText(ensurePermissionSetting(claimType.id).override) }}
+                </small>
+              </div>
+              <div v-if="ensurePermissionSetting(claimType.id).override === 'allow'" class="custom-limit">
+                <label class="limit-label">Custom Limit (optional):</label>
+                <div class="limit-input-group">
+                  <InputNumber 
+                    v-model="ensurePermissionSetting(claimType.id).custom_limit_amount"
+                    mode="currency" 
+                    currency="USD" 
+                    locale="en-US"
+                    :min="0"
+                    placeholder="Use default limit"
+                    class="w-full"
+                  />
+                  <small class="default-limit-text">
+                    Default: ${{ claimType.limit_amount.toFixed(2) }} ({{ claimType.limit_timespan }})
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" severity="secondary" @click="cancelPermissionChanges" />
+        <Button label="Save Changes" @click="savePermissions" :loading="savingPermissions" />
+      </template>
+    </Dialog>
+
+    <!-- Adjust Balances Dialog -->
+    <Dialog v-model:visible="showBalancesDialog" header="Adjust User Balances" modal class="w-full max-w-4xl">
+      <div class="py-4">
+        <p style="color: var(--surface-600); margin-bottom: var(--space-13);">Adjust balance limits for this user. Changes will take effect immediately:</p>
+        <div v-if="userDetails?.balances.length === 0" class="no-data-message">
+          No balances found for this user
+        </div>
+        <div v-else class="balances-grid">
+          <div v-for="balance in userDetails?.balances" :key="balance.claim_type_id" class="balance-item">
+            <div class="balance-header">
+              <h4>{{ balance.claim_type.name }}</h4>
+              <p class="balance-description">{{ balance.claim_type.description || 'No description available' }}</p>
+            </div>
+            <div class="balance-info">
+              <div class="info-row">
+                <span class="info-label">Current Limit:</span>
+                <span class="info-value">${{ balance.total_limit.toFixed(2) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Current Spent:</span>
+                <span class="info-value">${{ balance.current_spent.toFixed(2) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Remaining:</span>
+                <span class="info-value remaining">${{ balance.remaining_balance.toFixed(2) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Reset Period:</span>
+                <span class="info-value">{{ balance.reset_period }}</span>
+              </div>
+            </div>
+            <div class="balance-adjustment">
+              <label class="adjustment-label">New Limit:</label>
+              <InputNumber 
+                :model-value="ensureBalanceAdjustment(balance.claim_type_id)"
+                @update:model-value="setBalanceAdjustment(balance.claim_type_id, $event)"
+                mode="currency" 
+                currency="USD" 
+                locale="en-US"
+                :min="0"
+                class="w-full"
+                :placeholder="balance.total_limit.toFixed(2)"
+              />
+              <small class="adjustment-help">
+                Leave empty to keep current limit of ${{ balance.total_limit.toFixed(2) }}
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" severity="secondary" @click="cancelBalanceChanges" />
+        <Button label="Apply Changes" @click="saveBalanceAdjustments" :loading="savingBalances" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -214,8 +338,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
-import { adminApi } from '@/api'
-import type { UserDetails } from '@/types'
+import { adminApi, claimTypesApi } from '@/api'
+import type { UserDetails, ClaimType } from '@/types'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
@@ -225,6 +349,8 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
+import SelectButton from 'primevue/selectbutton'
+import InputNumber from 'primevue/inputnumber'
 import PageHeader from '@/components/base/PageHeader.vue'
 
 const route = useRoute()
@@ -236,6 +362,41 @@ const loading = ref(false)
 const error = ref('')
 const showEditDialog = ref(false)
 const saving = ref(false)
+const showPermissionsDialog = ref(false)
+const savingPermissions = ref(false)
+const availableClaimTypes = ref<ClaimType[]>([])
+const permissionSettings = ref<Record<number, { override: string; custom_limit_amount?: number }>>({})
+const originalPermissionSettings = ref<Record<number, { override: string; custom_limit_amount?: number }>>({})
+
+const overrideOptions = [
+  { label: 'Group', value: 'group' },
+  { label: 'Allow', value: 'allow' }, 
+  { label: 'Deny', value: 'deny' }
+]
+
+const ensurePermissionSetting = (claimTypeId: number) => {
+  if (!permissionSettings.value[claimTypeId]) {
+    permissionSettings.value[claimTypeId] = {
+      override: 'group',
+      custom_limit_amount: undefined
+    }
+  }
+  return permissionSettings.value[claimTypeId]
+}
+const showBalancesDialog = ref(false)
+const savingBalances = ref(false)
+const balanceAdjustments = ref<Record<number, number | null>>({})
+
+const ensureBalanceAdjustment = (claimTypeId: number) => {
+  if (!(claimTypeId in balanceAdjustments.value)) {
+    balanceAdjustments.value[claimTypeId] = null
+  }
+  return balanceAdjustments.value[claimTypeId]
+}
+
+const setBalanceAdjustment = (claimTypeId: number, value: number | null) => {
+  balanceAdjustments.value[claimTypeId] = value
+}
 
 const editForm = ref({
   first_name: '',
@@ -324,6 +485,179 @@ const resetPassword = () => {
     summary: 'Info',
     detail: 'Password reset functionality not yet implemented'
   })
+}
+
+const managePermissions = async () => {
+  await loadClaimTypes()
+  initializePermissionSettings()
+  showPermissionsDialog.value = true
+}
+
+const loadClaimTypes = async () => {
+  try {
+    const response = await claimTypesApi.getAll()
+    if (response.data.data) {
+      availableClaimTypes.value = response.data.data
+    }
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load claim types'
+    })
+  }
+}
+
+const initializePermissionSettings = () => {
+  const settings: Record<number, { override: boolean | null; custom_limit_amount?: number }> = {}
+  
+  // First, initialize all claim types with default values
+  availableClaimTypes.value.forEach(claimType => {
+    settings[claimType.id] = {
+      override: 'group',
+      custom_limit_amount: undefined
+    }
+  })
+  
+  // Then override with existing permissions
+  if (userDetails.value?.permissions) {
+    userDetails.value.permissions.forEach(permission => {
+      if (settings[permission.claim_type_id]) {
+        settings[permission.claim_type_id] = {
+          override: permission.is_allowed ? 'allow' : 'deny',
+          custom_limit_amount: permission.custom_limit_amount
+        }
+      }
+    })
+  }
+  
+  permissionSettings.value = settings
+  originalPermissionSettings.value = JSON.parse(JSON.stringify(settings))
+}
+
+const updatePermissionSetting = (claimTypeId: number) => {
+  if (permissionSettings.value[claimTypeId] && permissionSettings.value[claimTypeId].override !== 'allow') {
+    // Clear custom limit when not allowing access
+    permissionSettings.value[claimTypeId].custom_limit_amount = undefined
+  }
+}
+
+const getOverrideText = (override: string) => {
+  if (override === 'group') return 'Use group permissions'
+  if (override === 'allow') return 'Allow access (override)'
+  return 'Deny access (override)'
+}
+
+const cancelPermissionChanges = () => {
+  permissionSettings.value = JSON.parse(JSON.stringify(originalPermissionSettings.value))
+  showPermissionsDialog.value = false
+}
+
+const savePermissions = async () => {
+  if (!userDetails.value?.user.id) return
+  
+  savingPermissions.value = true
+  try {
+    const overrides = Object.entries(permissionSettings.value)
+      .filter(([, setting]) => setting.override !== 'group')
+      .map(([claimTypeId, setting]) => ({
+        claim_type_id: parseInt(claimTypeId),
+        is_allowed: setting.override === 'allow',
+        custom_limit_amount: setting.custom_limit_amount
+      }))
+    
+    await adminApi.setUserClaimOverrides(userDetails.value.user.id, { overrides })
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Permission overrides updated successfully'
+    })
+    
+    showPermissionsDialog.value = false
+    // Refresh the user details to show updated permissions
+    await fetchUserDetails()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update permission overrides'
+    })
+  } finally {
+    savingPermissions.value = false
+  }
+}
+
+const adjustBalances = () => {
+  initializeBalanceAdjustments()
+  showBalancesDialog.value = true
+}
+
+const initializeBalanceAdjustments = () => {
+  const adjustments: Record<number, number | null> = {}
+  
+  // Initialize all claim type balances as null (no change)
+  if (userDetails.value?.balances) {
+    userDetails.value.balances.forEach(balance => {
+      adjustments[balance.claim_type_id] = null
+    })
+  }
+  
+  balanceAdjustments.value = adjustments
+}
+
+const cancelBalanceChanges = () => {
+  balanceAdjustments.value = {}
+  showBalancesDialog.value = false
+}
+
+const saveBalanceAdjustments = async () => {
+  if (!userDetails.value?.user.id) return
+  
+  // Filter out null values (no changes)
+  const changes = Object.entries(balanceAdjustments.value)
+    .filter(([, newLimit]) => newLimit !== null && newLimit !== undefined)
+    .map(([claimTypeId, newLimit]) => ({
+      user_id: userDetails.value!.user.id,
+      claim_type_id: parseInt(claimTypeId),
+      new_limit: newLimit as number
+    }))
+  
+  if (changes.length === 0) {
+    toast.add({
+      severity: 'info',
+      summary: 'No Changes',
+      detail: 'No balance adjustments to apply'
+    })
+    showBalancesDialog.value = false
+    return
+  }
+  
+  savingBalances.value = true
+  try {
+    // Apply each balance adjustment
+    for (const change of changes) {
+      await adminApi.adjustBalance(change)
+    }
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: `Updated ${changes.length} balance limit(s) successfully`
+    })
+    
+    showBalancesDialog.value = false
+    // Refresh the user details to show updated balances
+    await fetchUserDetails()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update balance limits'
+    })
+  } finally {
+    savingBalances.value = false
+  }
 }
 
 const getBalanceClass = (remaining: number) => {
@@ -453,5 +787,163 @@ onMounted(() => {
   .content-grid {
     gap: var(--space-8);
   }
+}
+
+/* Permissions Management Styles */
+.permissions-grid {
+  display: grid;
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.permission-item {
+  border: 1px solid var(--surface-200);
+  border-radius: 8px;
+  padding: 1rem;
+  background: white;
+}
+
+.permission-header h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--surface-800);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.permission-description {
+  margin: 0 0 1rem 0;
+  color: var(--surface-600);
+  font-size: 0.875rem;
+}
+
+.permission-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.permission-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toggle-label {
+  font-weight: 500;
+  color: var(--surface-700);
+  min-width: 120px;
+}
+
+.override-help {
+  color: var(--surface-500);
+  font-size: 0.75rem;
+  flex-basis: 100%;
+  margin-top: 0.25rem;
+}
+
+.custom-limit {
+  padding-left: 1rem;
+  border-left: 2px solid var(--primary-200);
+}
+
+.limit-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--surface-700);
+  margin-bottom: 0.5rem;
+}
+
+.limit-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.default-limit-text {
+  color: var(--surface-500);
+  font-size: 0.75rem;
+}
+
+/* Balance Adjustment Styles */
+.balances-grid {
+  display: grid;
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.balance-item {
+  border: 1px solid var(--surface-200);
+  border-radius: 8px;
+  padding: 1rem;
+  background: white;
+}
+
+.balance-header h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--surface-800);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.balance-description {
+  margin: 0 0 1rem 0;
+  color: var(--surface-600);
+  font-size: 0.875rem;
+}
+
+.balance-info {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--surface-50);
+  border-radius: 6px;
+  border: 1px solid var(--surface-100);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  font-size: 0.875rem;
+  color: var(--surface-600);
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 0.875rem;
+  color: var(--surface-800);
+  font-weight: 600;
+}
+
+.info-value.remaining {
+  color: var(--green-600);
+}
+
+.balance-adjustment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.adjustment-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--surface-700);
+}
+
+.adjustment-help {
+  color: var(--surface-500);
+  font-size: 0.75rem;
 }
 </style>
