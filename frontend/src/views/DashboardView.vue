@@ -168,13 +168,13 @@
                 class="p-button-lg"
                 @click="router.push('/claims')"
               />
-              <Button
+              <!-- <Button
                 label="Profile Settings"
                 icon="pi pi-user"
                 severity="help"
                 class="p-button-lg"
                 @click="showProfileDialog = true"
-              />
+              /> -->
             </div>
 
             <Panel header="Claim Guidelines" :toggleable="true" class="mt-4">
