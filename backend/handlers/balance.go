@@ -38,9 +38,7 @@ func (h *BalanceHandler) GetUserBalances(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	utils.WriteSuccess(w, map[string]interface{}{
-		"balances": balances,
-	})
+	utils.WriteSuccess(w, balances)
 }
 
 // GetUserBalance gets balance for a specific claim type for the authenticated user
@@ -66,20 +64,18 @@ func (h *BalanceHandler) GetUserBalance(w http.ResponseWriter, r *http.Request) 
 			utils.WriteError(w, http.StatusNotFound, "Claim type not found")
 			return
 		}
-		
+
 		// Check if the error is due to user not found
 		if err.Error() == "user not found" {
 			utils.WriteError(w, http.StatusNotFound, "User not found")
 			return
 		}
-		
+
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to get user balance")
 		return
 	}
 
-	utils.WriteSuccess(w, map[string]interface{}{
-		"balance": balance,
-	})
+	utils.WriteSuccess(w, balance)
 }
 
 // CheckClaimAmount validates if user can claim a specific amount
@@ -108,13 +104,13 @@ func (h *BalanceHandler) CheckClaimAmount(w http.ResponseWriter, r *http.Request
 			utils.WriteError(w, http.StatusNotFound, "Claim type not found")
 			return
 		}
-		
+
 		// Check if the error is due to user not found
 		if err.Error() == "user not found" {
 			utils.WriteError(w, http.StatusNotFound, "User not found")
 			return
 		}
-		
+
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to check claim amount")
 		return
 	}
@@ -152,13 +148,13 @@ func (h *BalanceHandler) AdminUpdateBalance(w http.ResponseWriter, r *http.Reque
 			utils.WriteError(w, http.StatusNotFound, "Claim type not found")
 			return
 		}
-		
+
 		// Check if the error is due to user not found
 		if err.Error() == "user not found" {
 			utils.WriteError(w, http.StatusNotFound, "User not found")
 			return
 		}
-		
+
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to adjust balance")
 		return
 	}
