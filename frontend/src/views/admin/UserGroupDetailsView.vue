@@ -62,6 +62,7 @@
           <DataTable 
             v-if="groupDetails.members.length > 0"
             :value="groupDetails.members" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
           >
@@ -112,6 +113,7 @@
           <DataTable 
             v-if="groupDetails.permissions.length > 0"
             :value="groupDetails.permissions" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
           >
@@ -164,6 +166,7 @@
           <DataTable 
             v-if="groupDetails.approval_levels.length > 0"
             :value="groupDetails.approval_levels" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
             :sortField="'level'"

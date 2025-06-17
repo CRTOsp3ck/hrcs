@@ -84,6 +84,7 @@
           <DataTable 
             v-if="userDetails.balances.length > 0"
             :value="userDetails.balances" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
           >
@@ -124,6 +125,7 @@
           <DataTable 
             v-if="userDetails.claims.length > 0"
             :value="userDetails.claims" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
           >

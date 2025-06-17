@@ -93,13 +93,13 @@
         </template>
       </Card>
 
-      <!-- Approval History -->
+      <!-- Approval Status -->
       <Card class="history-card">
         <template #header>
-          <h3 class="card-title">Approval History</h3>
+          <h3 class="card-title">Approval Status</h3>
         </template>
         <template #content>
-          <Timeline :value="approvalHistory" class="custom-timeline">
+          <Timeline :value="approvalWorkflow" class="custom-timeline">
             <template #marker="slotProps">
               <span class="timeline-marker" :class="getTimelineMarkerClass(slotProps.item)">
                 <i :class="getTimelineIcon(slotProps.item)"></i>
@@ -109,7 +109,8 @@
               <div class="timeline-content">
                 <div class="timeline-header">
                   <span class="timeline-title">{{ slotProps.item.title }}</span>
-                  <span class="timeline-date">{{ formatDateTime(slotProps.item.date) }}</span>
+                  <span class="timeline-date" v-if="slotProps.item.date">{{ formatDateTime(slotProps.item.date) }}</span>
+                  <span class="timeline-status" v-else :class="slotProps.item.statusClass">{{ slotProps.item.status }}</span>
                 </div>
                 <p class="timeline-description">{{ slotProps.item.description }}</p>
                 <p v-if="slotProps.item.comments" class="timeline-comments">
@@ -166,10 +167,10 @@ const canCancel = computed(() =>
 )
 const canPerformActions = computed(() => canEdit.value || canSubmit.value || canCancel.value)
 
-const approvalHistory = computed(() => {
+const approvalWorkflow = computed(() => {
   if (!claim.value) return []
   
-  const history = [
+  const workflow = [
     {
       id: 1,
       type: 'created',
@@ -180,7 +181,7 @@ const approvalHistory = computed(() => {
   ]
   
   if (claim.value.submitted_at) {
-    history.push({
+    workflow.push({
       id: 2,
       type: 'submitted',
       title: 'Submitted for Approval',
@@ -189,20 +190,87 @@ const approvalHistory = computed(() => {
     })
   }
   
-  if (claim.value.approvals) {
-    claim.value.approvals.forEach((approval, index) => {
-      history.push({
-        id: 3 + index,
-        type: approval.action,
-        title: approval.action === 'approve' ? 'Approved' : 'Rejected',
-        description: `${approval.action === 'approve' ? 'Approved' : 'Rejected'} by ${approval.user?.name}`,
-        date: approval.created_at,
-        comments: approval.comments
+  // Always show approval workflow regardless of status
+  if (claim.value.approval_levels && claim.value.approval_levels.length > 0) {
+    // Show structured approval levels
+    claim.value.approval_levels.forEach((level, index) => {
+      const approval = claim.value.approvals?.find(a => a.approval_level_id === level.id)
+      
+      if (approval) {
+        // Completed approval step
+        workflow.push({
+          id: 10 + index,
+          type: approval.action,
+          title: `Level ${level.level}: ${approval.action === 'approve' ? 'Approved' : 'Rejected'}`,
+          description: `${approval.action === 'approve' ? 'Approved' : 'Rejected'} by ${approval.user?.name}`,
+          date: approval.created_at,
+          comments: approval.comments
+        })
+      } else {
+        // Pending or future approval step
+        const status = claim.value.status === 'draft' ? 'Not Started' : 'Pending'
+        const statusClass = claim.value.status === 'draft' ? 'status-draft' : 'status-pending'
+        
+        workflow.push({
+          id: 10 + index,
+          type: claim.value.status === 'draft' ? 'not-started' : 'pending',
+          title: `Level ${level.level}: ${level.approver?.name || 'Assigned Approver'}`,
+          description: `${level.approver?.name || 'Assigned approver'} - ${status}`,
+          date: null,
+          status: status,
+          statusClass: statusClass
+        })
+      }
+    })
+  } else {
+    // Fallback: show basic approval structure if no workflow levels defined
+    if (claim.value.approvals && claim.value.approvals.length > 0) {
+      claim.value.approvals.forEach((approval, index) => {
+        workflow.push({
+          id: 3 + index,
+          type: approval.action,
+          title: approval.action === 'approve' ? 'Approved' : 'Rejected',
+          description: `${approval.action === 'approve' ? 'Approved' : 'Rejected'} by ${approval.user?.name}`,
+          date: approval.created_at,
+          comments: approval.comments
+        })
       })
+    } else if (claim.value.status !== 'draft') {
+      // Show generic approval step if no specific workflow is defined
+      workflow.push({
+        id: 3,
+        type: 'pending',
+        title: 'Approval Required',
+        description: 'Waiting for manager approval',
+        date: null,
+        status: 'Pending',
+        statusClass: 'status-pending'
+      })
+    }
+  }
+  
+  // Add payment status if applicable
+  if (claim.value.status === 'payment-in-progress') {
+    workflow.push({
+      id: 100,
+      type: 'payment',
+      title: 'Payment Processing',
+      description: 'Claim approved and payment is being processed',
+      date: claim.value.approved_at
     })
   }
   
-  return history
+  if (claim.value.paid_at) {
+    workflow.push({
+      id: 101,
+      type: 'paid',
+      title: 'Payment Completed',
+      description: 'Payment has been successfully processed',
+      date: claim.value.paid_at
+    })
+  }
+  
+  return workflow
 })
 
 const formatAmount = (amount: number) => {
@@ -246,7 +314,11 @@ const getTimelineMarkerClass = (item: any) => {
     'created': 'timeline-marker-info',
     'submitted': 'timeline-marker-primary',
     'approve': 'timeline-marker-success',
-    'reject': 'timeline-marker-danger'
+    'reject': 'timeline-marker-danger',
+    'pending': 'timeline-marker-warning',
+    'not-started': 'timeline-marker-muted',
+    'payment': 'timeline-marker-info',
+    'paid': 'timeline-marker-success'
   }
   return classes[item.type] || ''
 }
@@ -256,7 +328,11 @@ const getTimelineIcon = (item: any) => {
     'created': 'pi pi-plus',
     'submitted': 'pi pi-send',
     'approve': 'pi pi-check',
-    'reject': 'pi pi-times'
+    'reject': 'pi pi-times',
+    'pending': 'pi pi-clock',
+    'not-started': 'pi pi-circle',
+    'payment': 'pi pi-credit-card',
+    'paid': 'pi pi-dollar'
   }
   return icons[item.type] || 'pi pi-circle'
 }
@@ -429,6 +505,38 @@ onMounted(() => {
   border-radius: 8px;
 }
 
+/* Fix Timeline alignment - force left alignment and full width */
+:deep(.p-timeline) {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+:deep(.p-timeline .p-timeline-event) {
+  display: flex !important;
+  align-items: flex-start !important;
+  margin: 0 !important;
+  padding: 0 0 1.5rem 0 !important;
+  width: 100% !important;
+}
+
+:deep(.p-timeline .p-timeline-event-separator) {
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:deep(.p-timeline .p-timeline-event-content) {
+  flex: 1 !important;
+  margin: 0 0 0 1rem !important;
+  padding: 0 !important;
+  width: calc(100% - 3rem) !important;
+}
+
+:deep(.p-timeline .p-timeline-event-opposite) {
+  display: none !important;
+}
+
 .custom-timeline .timeline-marker {
   width: 2rem;
   height: 2rem;
@@ -455,8 +563,17 @@ onMounted(() => {
   background: #ef4444;
 }
 
+.timeline-marker-warning {
+  background: #f59e0b;
+}
+
+.timeline-marker-muted {
+  background: var(--surface-300);
+  color: var(--surface-600);
+}
+
 .timeline-content {
-  padding-bottom: 2rem;
+  padding-bottom: 1rem;
 }
 
 .timeline-header {
@@ -476,6 +593,23 @@ onMounted(() => {
   color: var(--surface-500);
 }
 
+.timeline-status {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-draft {
+  background: var(--surface-100);
+  color: var(--surface-600);
+}
+
 .timeline-description {
   color: var(--surface-700);
   margin: 0.5rem 0;
@@ -490,20 +624,6 @@ onMounted(() => {
   color: var(--surface-700);
 }
 
-.admin-actions-card {
-  margin-top: 1.5rem;
-}
-
-.admin-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.admin-buttons {
-  display: flex;
-  gap: 1rem;
-}
 
 .loading-state {
   text-align: center;

@@ -386,7 +386,7 @@ onMounted(() => {
 }
 
 .empty-state p {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .empty-icon {

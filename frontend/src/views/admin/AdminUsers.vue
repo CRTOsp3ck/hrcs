@@ -22,7 +22,7 @@
     <!-- Users Table -->
     <DataTable
       :value="users"
-      :loading="loading"
+      v-show="!loading || users.length > 0"
       :filters="filters"
       filterDisplay="menu"
       :globalFilterFields="['name', 'email', 'role', 'department']"
@@ -95,6 +95,18 @@
         </template>
       </Column>
     </DataTable>
+
+    <!-- Loading skeleton -->
+    <div v-show="loading && users.length === 0" class="table-loading">
+      <div class="loading-skeleton">
+        <div class="skeleton-row" v-for="i in 5" :key="i">
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+          <div class="skeleton-cell"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Add/Edit User Dialog -->
     <Dialog
@@ -413,6 +425,39 @@ onMounted(() => {
 .text-secondary {
   color: var(--surface-600);
   font-size: 0.875rem;
+}
+
+/* Loading skeleton */
+.table-loading {
+  background: var(--surface-0);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.loading-skeleton {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-row {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--surface-200);
+}
+
+.skeleton-cell {
+  height: 1rem;
+  background: var(--surface-200);
+  border-radius: 4px;
+  flex: 1;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
 }
 
 @media (max-width: 768px) {

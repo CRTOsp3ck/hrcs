@@ -127,6 +127,7 @@
           <DataTable 
             v-if="claimTypeDetails.group_permissions.length > 0"
             :value="claimTypeDetails.group_permissions" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
           >
@@ -178,6 +179,7 @@
           <DataTable 
             v-if="claimTypeDetails.recent_claims.length > 0"
             :value="claimTypeDetails.recent_claims" 
+            :loading="loading"
             responsiveLayout="scroll"
             class="p-datatable-sm"
           >

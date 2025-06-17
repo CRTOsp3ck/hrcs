@@ -50,42 +50,68 @@
                   :max="balanceInfo?.remaining_balance || 999999"
                   :invalid="!!errors.amount || isBalanceExceeded"
                   class="w-full"
+                  @input="handleAmountChange"
                 />
                 <small v-if="errors.amount" class="p-error">{{ errors.amount }}</small>
                 <small v-if="isBalanceExceeded && !errors.amount" class="p-error">
-                  Amount exceeds remaining balance of ${{ formatBalance(balanceInfo?.remaining_balance) }}
+                  Amount exceeds remaining balance of ${{ balanceInfo?.remaining_balance.toFixed(2) }}
+                </small>
+                <small v-if="balanceInfo && form.amount > 0 && !isBalanceExceeded" class="p-help">
+                  Remaining after this claim: ${{ (balanceInfo.remaining_balance - form.amount).toFixed(2) }}
                 </small>
               </div>
 
-              <!-- Balance Information Card -->
+              <!-- Enhanced Balance Information Card -->
               <Card v-if="selectedClaimType && balanceInfo" class="balance-info-card span-2">
                 <template #header>
                   <div class="balance-header">
                     <i class="pi pi-wallet mr-2"></i>
-                    <h3>Balance Information</h3>
+                    <h3>Balance Information - {{ selectedClaimType.name }}</h3>
                     <ProgressSpinner v-if="loadingBalance" style="width: 20px; height: 20px" />
                   </div>
                 </template>
                 <template #content>
+                  <div class="balance-summary">
+                    <div class="balance-overview">
+                      <div class="balance-stat">
+                        <label>Limit Period:</label>
+                        <Tag :value="selectedClaimType.limit_timespan" severity="info" />
+                      </div>
+                      <div class="balance-stat">
+                        <label>Next Reset:</label>
+                        <span>{{ getNextResetDate() }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div class="balance-grid">
                     <div class="balance-item">
-                      <label>Total Limit ({{ selectedClaimType?.limit_timespan || 'N/A' }}):</label>
-                      <span class="amount">${{ formatBalance(balanceInfo.total_limit) }}</span>
+                      <label>Total Limit ({{ selectedClaimType.limit_timespan }}):</label>
+                      <span class="amount total-limit">${{ balanceInfo.total_limit.toFixed(2) }}</span>
                     </div>
                     <div class="balance-item">
-                      <label>Current Spent:</label>
-                      <span class="amount">${{ formatBalance(balanceInfo.current_spent) }}</span>
+                      <label>Already Spent:</label>
+                      <span class="amount spent">${{ balanceInfo.current_spent.toFixed(2) }}</span>
                     </div>
                     <div class="balance-item">
                       <label>Remaining Balance:</label>
-                      <span class="amount remaining" :class="{ 'low-balance': (balanceInfo.remaining_balance || 0) < 100 }">
-                        ${{ formatBalance(balanceInfo.remaining_balance) }}
+                      <span class="amount remaining" :class="{ 
+                        'low-balance': balanceInfo.remaining_balance < (balanceInfo.total_limit * 0.1),
+                        'zero-balance': balanceInfo.remaining_balance <= 0
+                      }">
+                        ${{ balanceInfo.remaining_balance.toFixed(2) }}
                       </span>
                     </div>
                   </div>
-                  <div v-if="(balanceInfo.remaining_balance || 0) <= 0" class="balance-warning">
+                  
+                  <!-- Balance Warnings -->
+                  <div v-if="balanceInfo.remaining_balance <= 0" class="balance-warning danger">
                     <i class="pi pi-exclamation-triangle mr-2"></i>
                     <span>No remaining balance for this claim type</span>
+                  </div>
+                  <div v-else-if="balanceInfo.remaining_balance < (balanceInfo.total_limit * 0.1)" class="balance-warning warning">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>Low balance remaining ({{ ((balanceInfo.remaining_balance / balanceInfo.total_limit) * 100).toFixed(1) }}% left)</span>
                   </div>
                 </template>
               </Card>
@@ -123,9 +149,7 @@
             <div class="form-actions">
               <Button
                 label="Cancel"
-                severity="secondary"Drag and drop files here or click to browse
-
-
+                severity="secondary"
                 outlined
                 @click="router.push('/claims')"
               />
@@ -229,6 +253,47 @@ const isBalanceExceeded = computed(() => {
 
 const formatBalance = (amount: number | undefined) => {
   return (amount || 0).toFixed(2)
+}
+
+const getNextResetDate = () => {
+  if (!balanceInfo.value) return 'N/A'
+  
+  const lastReset = new Date(balanceInfo.value.last_reset_date)
+  const resetPeriod = balanceInfo.value.reset_period
+  
+  let nextReset = new Date(lastReset)
+  
+  switch (resetPeriod) {
+    case 'daily':
+      nextReset.setDate(nextReset.getDate() + 1)
+      break
+    case 'weekly':
+      nextReset.setDate(nextReset.getDate() + 7)
+      break
+    case 'monthly':
+      nextReset.setMonth(nextReset.getMonth() + 1)
+      break
+    case 'annual':
+      nextReset.setFullYear(nextReset.getFullYear() + 1)
+      break
+  }
+  
+  return nextReset.toLocaleDateString()
+}
+
+const handleAmountChange = () => {
+  // Real-time balance validation
+  if (form.amount && balanceInfo.value) {
+    if (form.amount > balanceInfo.value.remaining_balance) {
+      form.amount = balanceInfo.value.remaining_balance
+      toast.add({
+        severity: 'warn',
+        summary: 'Amount Adjusted',
+        detail: `Amount automatically adjusted to remaining balance of $${balanceInfo.value.remaining_balance.toFixed(2)}`,
+        life: 4000
+      })
+    }
+  }
 }
 
 const breadcrumbItems = [
@@ -649,7 +714,7 @@ onMounted(() => {
   color: var(--surface-500);
 }
 
-/* Balance Information Styles */
+/* Enhanced Balance Information Styles */
 .balance-info-card {
   border: 1px solid var(--primary-200);
   background: var(--primary-50);
@@ -666,6 +731,30 @@ onMounted(() => {
 .balance-header h3 {
   margin: 0;
   flex: 1;
+}
+
+.balance-summary {
+  margin-bottom: 1.5rem;
+}
+
+.balance-overview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.balance-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.balance-stat label {
+  color: var(--surface-600);
+  font-weight: 500;
+  margin: 0;
 }
 
 .balance-grid {
@@ -698,6 +787,14 @@ onMounted(() => {
   color: var(--surface-800);
 }
 
+.balance-item .amount.total-limit {
+  color: var(--primary-600);
+}
+
+.balance-item .amount.spent {
+  color: var(--surface-700);
+}
+
 .balance-item .amount.remaining {
   color: var(--green-600);
 }
@@ -706,15 +803,29 @@ onMounted(() => {
   color: var(--orange-600);
 }
 
+.balance-item .amount.zero-balance {
+  color: var(--red-600);
+}
+
 .balance-warning {
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+.balance-warning.danger {
+  background: var(--red-100);
+  border: 1px solid var(--red-300);
+  color: var(--red-800);
+}
+
+.balance-warning.warning {
   background: var(--orange-100);
   border: 1px solid var(--orange-300);
-  border-radius: 6px;
   color: var(--orange-800);
-  font-weight: 500;
 }
 
 @media (max-width: 1200px) {
