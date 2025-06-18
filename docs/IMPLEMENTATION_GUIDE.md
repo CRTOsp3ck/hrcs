@@ -1,4 +1,4 @@
-# HRCS Implementation Guide: Claims, Balances & Details Views
+# HRCS Implementation Guide: las vegas
 
 ## Overview
 This guide provides a comprehensive implementation plan for the three core requirements:

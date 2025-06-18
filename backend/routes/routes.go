@@ -18,6 +18,7 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 	adminEnhanced := handlers.NewAdminEnhancedHandler(db)
 	dashboardHandler := handlers.NewDashboardHandler(db)
 	balanceHandler := handlers.NewBalanceHandler(db)
+	auditHandler := handlers.NewAuditHandler(db)
 
 	authMiddleware := middleware.AuthMiddleware(db, cfg.JWTSecret)
 
@@ -60,6 +61,9 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 					r.Delete("/", claimHandler.CancelClaim)
 					r.Post("/submit", claimHandler.SubmitClaim)
 					r.Post("/approve", claimHandler.ApproveClaim)
+					// NEW: Enhanced workflow endpoints (Phase 3)
+					r.Get("/workflow", claimHandler.GetClaimWorkflow)
+					r.Put("/workflow/{stepId}", claimHandler.UpdateClaimWorkflowStep)
 				})
 			})
 
@@ -126,6 +130,44 @@ func SetupRoutes(r *chi.Mux, db *gorm.DB, cfg *config.Config) {
 					// NEW: Balance management
 					r.Route("/balances", func(r chi.Router) {
 						r.Post("/adjust", balanceHandler.AdminUpdateBalance)
+					})
+
+					// NEW: Audit log management (Phase 3)
+					r.Route("/audit-log", func(r chi.Router) {
+						r.Get("/", auditHandler.GetAuditLogs)
+						r.Get("/stats", auditHandler.GetAuditLogStats)
+						r.Get("/options", auditHandler.GetAuditLogOptions)
+						r.Get("/{id}", auditHandler.GetAuditLogDetails)
+					})
+
+					// NEW: Reports management (Phase 3)
+					r.Route("/reports", func(r chi.Router) {
+						// Placeholder endpoints for reports
+						r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Content-Type", "application/json")
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{"data": [], "message": "Reports feature coming soon"}`))
+						})
+						r.Post("/{type}/generate", func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Content-Type", "application/json")
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{"message": "Report generation feature coming soon"}`))
+						})
+					})
+
+					// NEW: Integrations management (Phase 3)
+					r.Route("/integrations", func(r chi.Router) {
+						// Placeholder endpoints for integrations
+						r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Content-Type", "application/json")
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{"data": {"microsoft": {"configured": false, "features": ["sso", "teams", "ad_sync"]}}, "message": "Integrations configuration available"}`))
+						})
+						r.Put("/microsoft", func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Content-Type", "application/json")
+							w.WriteHeader(http.StatusOK)
+							w.Write([]byte(`{"message": "Microsoft integration configuration coming soon"}`))
+						})
 					})
 				})
 

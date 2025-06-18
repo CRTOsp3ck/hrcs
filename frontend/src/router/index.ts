@@ -104,6 +104,22 @@ const router = createRouter({
           path: 'claims',
           name: 'admin-claims',
           component: () => import('@/views/admin/AdminClaims.vue')
+        },
+        // NEW: Phase 3 admin routes
+        {
+          path: 'audit-log',
+          name: 'admin-audit-log',
+          component: () => import('@/views/admin/AdminAuditLog.vue')
+        },
+        {
+          path: 'reports',
+          name: 'admin-reports',
+          component: () => import('@/views/admin/AdminReports.vue')
+        },
+        {
+          path: 'integrations',
+          name: 'admin-integrations',
+          component: () => import('@/views/admin/AdminIntegrations.vue')
         }
       ]
     }

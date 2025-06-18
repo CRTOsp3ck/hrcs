@@ -72,6 +72,43 @@
             </li>
           </ul>
         </div>
+        
+        <!-- Analytics & Reporting Section (Phase 3) -->
+        <div class="nav-section">
+          <h3 class="section-title">Analytics & Reporting</h3>
+          <ul class="nav-items">
+            <li>
+              <router-link to="/admin/reports" class="nav-item">
+                <i class="pi pi-chart-bar"></i>
+                <span>Reports</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/admin/audit-log" class="nav-item">
+                <i class="pi pi-history"></i>
+                <span>Audit Log</span>
+              </router-link>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- System Configuration Section (Phase 3) -->
+        <div class="nav-section">
+          <h3 class="section-title">System Configuration</h3>
+          <ul class="nav-items">
+            <li>
+              <router-link to="/admin/integrations" class="nav-item">
+                <i class="pi pi-cloud"></i>
+                <span>Integrations</span>
+                <Badge 
+                  value="NEW" 
+                  severity="info" 
+                  class="nav-badge"
+                />
+              </router-link>
+            </li>
+          </ul>
+        </div>
       </div>
     </nav>
     

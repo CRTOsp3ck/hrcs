@@ -56,6 +56,21 @@ const menuItems = [
     label: 'All Claims',
     icon: 'pi pi-file-o',
     route: '/admin/claims'
+  },
+  {
+    label: 'Reports',
+    icon: 'pi pi-chart-pie',
+    route: '/admin/reports'
+  },
+  {
+    label: 'Audit Log',
+    icon: 'pi pi-history',
+    route: '/admin/audit-log'
+  },
+  {
+    label: 'Integrations',
+    icon: 'pi pi-cloud',
+    route: '/admin/integrations'
   }
 ]
 </script>
